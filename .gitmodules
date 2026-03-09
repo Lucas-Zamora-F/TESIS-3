@@ -1,0 +1,9 @@
+[submodule "extern/sdpt3"]
+	path = extern/sdpt3
+	url = https://github.com/sqlp/sdpt3.git
+[submodule "extern/matilda"]
+	path = extern/matilda
+	url = https://github.com/andremun/InstanceSpace.git
+[submodule "extern/sedumi"]
+	path = extern/sedumi
+	url = https://github.com/sqlp/sedumi.git
