@@ -7,3 +7,12 @@
 [submodule "extern/sedumi"]
 	path = extern/sedumi
 	url = https://github.com/sqlp/sedumi.git
+[submodule "extern/lorads"]
+	path = extern/lorads
+	url = https://github.com/COPT-Public/LoRADS.git
+[submodule "extern/manopt"]
+	path = extern/manopt
+	url = https://github.com/NicolasBoumal/manopt.git
+[submodule "extern/scs"]
+	path = extern/scs
+	url = https://github.com/cvxgrp/scs.git

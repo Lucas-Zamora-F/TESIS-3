@@ -1,0 +1,41 @@
+{
+  "global_settings": {
+    "tolerance_gap": 1e-6,
+    "max_iterations": 2000,
+    "time_limit_seconds": 3600,
+    "verbose": 0
+  },
+  "solvers": {
+    "sdpt3": {
+      "steptol": 1e-8,
+      "gam": 0
+    },
+    "sedumi": {
+      "bigeps": 1e-3,
+      "stepdif": 2,
+      "beta": 0.5,
+      "theta": 0.25,
+      "alg": 2
+    },
+    "sdpnalplus": {
+      "stoptol": 1e-7,
+      "max_time": 0,
+      "printlevel": 0,
+      "stopoption": 0,
+      "plotyes": 0,
+      "scale_data": 1,
+      "silent_solver": true,
+      "capture_solver_output": false
+    },
+    "manopt": {
+      "rank": 20,
+      "penalty_rho": 10.0,
+      "penalty_rho_scale": 10.0,
+      "max_outer_iterations": 5,
+      "verbosity": 0,
+      "random_seed": 42,
+      "tolgradnorm": 1e-8,
+      "minstepsize": 1e-16
+    }
+  }
+}
