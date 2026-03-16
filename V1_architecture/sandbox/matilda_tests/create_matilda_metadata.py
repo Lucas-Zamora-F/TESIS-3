@@ -69,7 +69,7 @@ def main() -> None:
     if not INSTANCES_DIR.exists():
         raise FileNotFoundError(f"No se encontró la carpeta de instancias: {INSTANCES_DIR}")
 
-    instance_paths = sorted(INSTANCES_DIR.glob("*.dat-s"), key=natural_sort_key)
+    instance_paths = sorted(INSTANCES_DIR.glob("arch*.dat-s"), key=natural_sort_key)
 
     if not instance_paths:
         raise FileNotFoundError(f"No se encontraron archivos *.dat-s en: {INSTANCES_DIR}")

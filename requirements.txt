@@ -1,1 +1,10 @@
+python:
 matlabengine
+pandas
+
+matlabs addons:
+Statistics and Machine Learning Toolbox
+Optimization Toolbox
+Signal Processing Toolbox
+MinGW-w64
+Communications Toolbox
