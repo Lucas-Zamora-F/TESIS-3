@@ -4,12 +4,19 @@ import os
 from typing import Any, Dict, Optional
 
 from tools.runners.matlab_runner import MatlabRunner
+from tools.logging.universal_logger import (
+    get_run_id,
+    log_event,
+    log_exception,
+)
 
 
 class SDPT3Wrapper:
     """
-    Wrapper v2 para SDPT3 usando MatlabRunner.
+    Wrapper v2 para SDPT3 usando MatlabRunner + logger universal.
     """
+
+    SOLVER_NAME = "sdpt3"
 
     def __init__(
         self,
@@ -24,6 +31,19 @@ class SDPT3Wrapper:
         self.config_path = os.path.abspath(
             config_path if os.path.isabs(config_path)
             else os.path.join(self.project_root, config_path)
+        )
+
+        self.run_id = get_run_id()
+
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Inicializando SDPT3Wrapper v2",
+            extra={
+                "run_id": self.run_id,
+                "project_root": self.project_root,
+                "config_path": self.config_path,
+            },
         )
 
         self.config = self._load_config(self.config_path)
@@ -45,6 +65,23 @@ class SDPT3Wrapper:
 
         os.makedirs(self.logs_dir, exist_ok=True)
 
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Configuración cargada para SDPT3Wrapper v2",
+            extra={
+                "target_tol": self.target_tol,
+                "max_iterations": self.max_iterations,
+                "time_limit_seconds": self.time_limit_seconds,
+                "verbose": self.verbose,
+                "steptol": self.steptol,
+                "gam": self.gam,
+                "sdpt3_repo": self.sdpt3_repo,
+                "sdpt3_matlab_dir": self.sdpt3_matlab_dir,
+                "logs_dir": self.logs_dir,
+            },
+        )
+
         self.runner = runner or MatlabRunner(
             startup_paths=[
                 self.sdpt3_repo,
@@ -52,7 +89,30 @@ class SDPT3Wrapper:
             ]
         )
 
-        self._prepare_matlab_environment()
+        try:
+            self._prepare_matlab_environment()
+            log_event(
+                "INFO",
+                self.SOLVER_NAME,
+                "Entorno MATLAB preparado correctamente",
+                extra={
+                    "startup_paths": [
+                        self.sdpt3_repo,
+                        self.sdpt3_matlab_dir,
+                    ]
+                },
+            )
+        except Exception as exc:
+            log_exception(
+                self.SOLVER_NAME,
+                "Fallo preparando entorno MATLAB para SDPT3",
+                exc,
+                extra={
+                    "sdpt3_repo": self.sdpt3_repo,
+                    "sdpt3_matlab_dir": self.sdpt3_matlab_dir,
+                },
+            )
+            raise
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         if not os.path.exists(path):
@@ -62,14 +122,40 @@ class SDPT3Wrapper:
             return json.load(f)
 
     def _prepare_matlab_environment(self) -> None:
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Agregando paths al entorno MATLAB",
+            extra={
+                "recursive_paths": [
+                    self.sdpt3_repo,
+                    self.sdpt3_matlab_dir,
+                ]
+            },
+        )
+
         self.runner.add_path(self.sdpt3_repo, recursive=True)
         self.runner.add_path(self.sdpt3_matlab_dir, recursive=True)
 
         sqlp_exists = self.runner.eval("exist('sqlp','file')", nargout=1)
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Verificación de disponibilidad de sqlp",
+            extra={"eval_result": sqlp_exists},
+        )
+
         if not sqlp_exists["ok"] or int(sqlp_exists["result"]) == 0:
             raise RuntimeError("SDPT3 no disponible: MATLAB no encuentra 'sqlp'.")
 
         helper_exists = self.runner.eval("exist('run_sdpt3_instance','file')", nargout=1)
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Verificación de disponibilidad de run_sdpt3_instance",
+            extra={"eval_result": helper_exists},
+        )
+
         if not helper_exists["ok"] or int(helper_exists["result"]) == 0:
             raise RuntimeError(
                 "No se encontró 'run_sdpt3_instance.m' en tools/matlab/sdpt3."
@@ -90,7 +176,12 @@ class SDPT3Wrapper:
         except Exception:
             return default
 
-    def _normalize_result(self, raw: Dict[str, Any], instance_name: str, matlab_time: Optional[float]) -> Dict[str, Any]:
+    def _normalize_result(
+        self,
+        raw: Dict[str, Any],
+        instance_name: str,
+        matlab_time: Optional[float],
+    ) -> Dict[str, Any]:
         obj_val = self._safe_float(raw.get("obj_val"))
         gap = self._safe_float(raw.get("gap"))
         pinf = self._safe_float(raw.get("pinfeas"))
@@ -116,7 +207,7 @@ class SDPT3Wrapper:
         elif status not in {"OPTIMAL", "STOPPED", "TIME_LIMIT", "FAILED"}:
             status = "STOPPED"
 
-        return {
+        normalized = {
             "instance": instance_name,
             "status": status,
             "obj_val": obj_val,
@@ -132,6 +223,15 @@ class SDPT3Wrapper:
             "dinf": dinf_aux,
             "feasratio": feasratio,
         }
+
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Resultado normalizado de SDPT3",
+            extra=normalized,
+        )
+
+        return normalized
 
     def solve(self, instance_path: str) -> Dict[str, Any]:
         instance_path = os.path.abspath(instance_path)
@@ -160,37 +260,172 @@ result = run_sdpt3_instance( ...
 );
 """
 
-        exec_res = self.runner.eval(cmd, nargout=0)
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Iniciando resolución de instancia con SDPT3",
+            extra={
+                "instance": instance_name,
+                "instance_path": instance_path,
+                "matlab_log_path": log_path,
+                "target_tol": self.target_tol,
+                "max_iterations": self.max_iterations,
+                "time_limit_seconds": self.time_limit_seconds,
+            },
+        )
 
-        if not exec_res["ok"]:
+        log_event(
+            "INFO",
+            self.SOLVER_NAME,
+            "Comando MATLAB enviado a SDPT3",
+            extra={
+                "instance": instance_name,
+                "command": cmd.strip(),
+            },
+        )
+
+        try:
+            exec_res = self.runner.eval(cmd, nargout=0)
+
+            log_event(
+                "INFO",
+                self.SOLVER_NAME,
+                "Respuesta de ejecución MATLAB recibida",
+                extra={
+                    "instance": instance_name,
+                    "exec_ok": exec_res.get("ok"),
+                    "exec_time": exec_res.get("time"),
+                    "exec_error": exec_res.get("error"),
+                },
+            )
+
+            if not exec_res["ok"]:
+                out = {
+                    "instance": instance_name,
+                    "status": "FAILED",
+                    "error": exec_res["error"],
+                    "log_file": log_path,
+                }
+
+                log_event(
+                    "ERROR",
+                    self.SOLVER_NAME,
+                    "Fallo al ejecutar comando MATLAB para SDPT3",
+                    extra=out,
+                )
+                return out
+
+            fetch_res = self.runner.eval("result", nargout=1)
+
+            log_event(
+                "INFO",
+                self.SOLVER_NAME,
+                "Resultado bruto solicitado desde MATLAB",
+                extra={
+                    "instance": instance_name,
+                    "fetch_ok": fetch_res.get("ok"),
+                    "fetch_error": fetch_res.get("error"),
+                },
+            )
+
+            if not fetch_res["ok"]:
+                out = {
+                    "instance": instance_name,
+                    "status": "FAILED",
+                    "error": fetch_res["error"],
+                    "log_file": log_path,
+                }
+
+                log_event(
+                    "ERROR",
+                    self.SOLVER_NAME,
+                    "No se pudo recuperar 'result' desde MATLAB",
+                    extra=out,
+                )
+                return out
+
+            raw = fetch_res["result"]
+
+            log_event(
+                "INFO",
+                self.SOLVER_NAME,
+                "Resultado bruto recuperado desde MATLAB",
+                extra={
+                    "instance": instance_name,
+                    "raw_type": str(type(raw)),
+                    "raw_preview": raw if isinstance(raw, dict) else str(raw),
+                },
+            )
+
+            if not isinstance(raw, dict):
+                out = {
+                    "instance": instance_name,
+                    "status": "FAILED",
+                    "error": f"Formato inesperado: {type(raw)}",
+                    "log_file": log_path,
+                }
+
+                log_event(
+                    "ERROR",
+                    self.SOLVER_NAME,
+                    "Formato inesperado del resultado devuelto por MATLAB",
+                    extra=out,
+                )
+                return out
+
+            out = self._normalize_result(raw, instance_name, exec_res.get("time"))
+            out["log_file"] = log_path
+            out["run_id"] = self.run_id
+
+            log_event(
+                "INFO",
+                self.SOLVER_NAME,
+                "Instancia resuelta y procesada correctamente",
+                extra=out,
+            )
+
+            return out
+
+        except Exception as exc:
+            log_exception(
+                self.SOLVER_NAME,
+                "Excepción no controlada durante solve() de SDPT3",
+                exc,
+                extra={
+                    "instance": instance_name,
+                    "instance_path": instance_path,
+                    "matlab_log_path": log_path,
+                    "command": cmd.strip(),
+                },
+            )
             return {
                 "instance": instance_name,
                 "status": "FAILED",
-                "error": exec_res["error"],
+                "error": f"{type(exc).__name__}: {exc}",
+                "log_file": log_path,
+                "run_id": self.run_id,
             }
-
-        fetch_res = self.runner.eval("result", nargout=1)
-        if not fetch_res["ok"]:
-            return {
-                "instance": instance_name,
-                "status": "FAILED",
-                "error": fetch_res["error"],
-            }
-
-        raw = fetch_res["result"]
-
-        if not isinstance(raw, dict):
-            return {
-                "instance": instance_name,
-                "status": "FAILED",
-                "error": f"Formato inesperado: {type(raw)}",
-            }
-
-        out = self._normalize_result(raw, instance_name, exec_res.get("time"))
-        out["log_file"] = log_path
-
-        return out
 
     def close(self) -> None:
         if self.runner is not None:
-            self.runner.stop()
+            try:
+                log_event(
+                    "INFO",
+                    self.SOLVER_NAME,
+                    "Cerrando MatlabRunner de SDPT3Wrapper",
+                    extra={"run_id": self.run_id},
+                )
+                self.runner.stop()
+                log_event(
+                    "INFO",
+                    self.SOLVER_NAME,
+                    "MatlabRunner cerrado correctamente",
+                    extra={"run_id": self.run_id},
+                )
+            except Exception as exc:
+                log_exception(
+                    self.SOLVER_NAME,
+                    "Error al cerrar MatlabRunner",
+                    exc,
+                    extra={"run_id": self.run_id},
+                )
