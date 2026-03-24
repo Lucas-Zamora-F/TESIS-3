@@ -1,5 +1,0 @@
-Row,Avg_Perf_all_instances,Std_Perf_all_instances,Probability_of_good,Avg_Perf_selected_instances,Std_Perf_selected_instances,CV_model_accuracy,CV_model_precision,CV_model_recall,NumNeighbours,Distance
-sedumi,1.396,0.154,0.25,,,75,,0,2,2
-sdpt3,1.001,0.511,1,1.001,0.511,100,100,100,1,3
-Oracle,0.96,0.431,1,,,,,,,
-Selector,1.001,0.511,1,1.001,0.511,,100,80,,
