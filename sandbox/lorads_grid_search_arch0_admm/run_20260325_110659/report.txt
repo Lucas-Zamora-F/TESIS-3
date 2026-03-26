@@ -1,0 +1,72 @@
+LORADS GRID SEARCH ARCH0 - SOLO ALM+ADMM
+============================================================
+
+expected_opt_obj = 5.665170000000e-01
+n_configs = 1152
+
+Status counts:
+  - NUMERICAL_ERROR: 672
+  - STOPPED: 336
+  - TIME_LIMIT: 144
+
+BEST CONFIG
+------------------------------------------------------------
+run_id: run_0556
+status: STOPPED
+runtime: 7.923440
+iterations: 10
+obj_val: -5.446500000000e-01
+dual_obj: -5.449640000000e-01
+gap: 1.500740000000e-04
+pinfeas: 2.692880000000e-06
+dinfeas: nan
+phi: 1.500740000000e-04
+abs_obj_error(|obj|): 2.186700000000e-02
+numerical_error: 0
+log_file: C:\Users\Lucas Zamora\Desktop\TESIS-3\sandbox\lorads_grid_search_arch0_admm\run_20260325_110659\raw_logs\run_0556_stdout.log
+command: wsl /home/lucas_zamora/lorads_build/lorads_src/build/LoRADS_v_2_0_1-alpha "/mnt/c/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/sdplib/arch0.dat-s" --timesLogRank 1.5 --phase1Tol 0.001 --phase2Tol 1e-05 --initRho 0.0 --rhoMax 1000.0 --rhoFreq 10 --rhoFactor 1.1 --ALMRhoFactor 1.5 --heuristicFactor 1.0 --maxALMIter 10000 --maxADMMIter 5 --timeSecLimit 180.0 --lbfgsListLength 2 --endTauTol 0.0 --endALMSubTol 0.0 --l2Rescaling 0 --reoptLevel 0 --dyrankLevel 1 --highAccMode 1
+config:
+{
+  "times_log_rank": 1.5,
+  "phase1_tol": 0.001,
+  "phase2_tol": 1e-05,
+  "init_rho": 0.0,
+  "rho_max": 1000.0,
+  "rho_freq": 10,
+  "rho_factor": 1.1,
+  "alm_rho_factor": 1.5,
+  "heuristic_factor": 1.0,
+  "lbfgs_list_length": 2,
+  "end_tau_tol": 0.0,
+  "end_alm_sub_tol": 0.0,
+  "l2_rescaling": 0,
+  "reopt_level": 0,
+  "dyrank_level": 1,
+  "high_acc_mode": 1,
+  "max_alm_iter": 10000,
+  "max_admm_iter": 5,
+  "time_limit_seconds": 180.0
+}
+
+TOP 20
+------------------------------------------------------------
+run_0556 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=7.923
+run_0520 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=8.081
+run_0460 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=8.175
+run_0412 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.123
+run_0652 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.163
+run_0424 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.164
+run_0616 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.214
+run_0664 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.221
+run_0472 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.241
+run_0700 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.242
+run_0760 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.309
+run_0508 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.395
+run_0748 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.546
+run_0712 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.719
+run_0568 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=9.783
+run_0604 | STOPPED          | phi=1.500740e-04 | obj=-5.446500e-01 | abs(|obj|-opt)=2.186700e-02 | numerr=0 | time=10.010
+run_0790 | STOPPED          | phi=3.386450e-04 | obj=-5.536470e-01 | abs(|obj|-opt)=1.287000e-02 | numerr=0 | time=40.503
+run_0982 | STOPPED          | phi=3.386450e-04 | obj=-5.536470e-01 | abs(|obj|-opt)=1.287000e-02 | numerr=0 | time=40.586
+run_0934 | STOPPED          | phi=3.386450e-04 | obj=-5.536470e-01 | abs(|obj|-opt)=1.287000e-02 | numerr=0 | time=40.721
+run_1018 | STOPPED          | phi=3.386450e-04 | obj=-5.536470e-01 | abs(|obj|-opt)=1.287000e-02 | numerr=0 | time=40.799

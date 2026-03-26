@@ -1,0 +1,13 @@
+{
+  "project_root": "C:\\Users\\Lucas Zamora\\Desktop\\TESIS-3",
+  "instance_path": "C:\\Users\\Lucas Zamora\\Desktop\\TESIS-3\\data\\instances\\sdplib\\arch0.dat-s",
+  "instance_wsl": "/mnt/c/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/sdplib/arch0.dat-s",
+  "executable_wsl": "/home/lucas_zamora/lorads_build/lorads_src/build/LoRADS_v_2_0_1-alpha",
+  "expected_opt_obj": 0.566517,
+  "n_configs": 1152,
+  "csv": "C:\\Users\\Lucas Zamora\\Desktop\\TESIS-3\\sandbox\\lorads_grid_search_arch0_admm\\run_20260325_110659\\results.csv",
+  "json": "C:\\Users\\Lucas Zamora\\Desktop\\TESIS-3\\sandbox\\lorads_grid_search_arch0_admm\\run_20260325_110659\\results.json",
+  "report": "C:\\Users\\Lucas Zamora\\Desktop\\TESIS-3\\sandbox\\lorads_grid_search_arch0_admm\\run_20260325_110659\\report.txt",
+  "summary_log": "C:\\Users\\Lucas Zamora\\Desktop\\TESIS-3\\sandbox\\lorads_grid_search_arch0_admm\\run_20260325_110659\\summary.log",
+  "best_run_id": "run_0556"
+}

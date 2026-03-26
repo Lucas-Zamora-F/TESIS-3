@@ -1,6 +1,6 @@
 {
   "global_settings": {
-    "tolerance_gap": 1e-6,
+    "tolerance_gap": 1e-5,
     "max_iterations": 10000,
     "time_limit_seconds": 360,
     "verbose": 0
@@ -19,22 +19,31 @@
     },
     "lorads": {
       "executable_path": "/home/lucas_zamora/lorads_build/lorads_src/build/LoRADS_v_2_0_1-alpha",
-      "times_log_rank": 2.0,
+      "wsl_command": "wsl",
+
+      "phase2_tol": 1e-5,
+      "times_log_rank": 1.2,
       "phase1_tol": 1e-3,
+
       "init_rho": 0.0,
-      "rho_max": 5000.0,
-      "rho_freq": 5,
-      "rho_factor": 1.2,
-      "alm_rho_factor": 2.0,
+      "rho_max": 1000.0,
+      "rho_freq": 10,
+      "rho_factor": 1.1,
+      "alm_rho_factor": 1.5,
+
       "heuristic_factor": 1.0,
       "lbfgs_list_length": 2,
+
       "end_tau_tol": 0.0,
       "end_alm_sub_tol": 0.0,
-      "l2_rescaling": 0,
-      "reopt_level": 2,
-      "dyrank_level": 2,
-      "high_acc_mode": 0,
-      "hard_kill_timeout_seconds": 363
+
+      "l2_rescaling": 1,
+      "reopt_level": 0,
+      "dyrank_level": 1,
+      "high_acc_mode": 1,
+
+      "hard_kill_timeout_seconds": 390,
+      "heartbeat_seconds": 15.0
     }
   }
 }

@@ -5,7 +5,7 @@ import re
 import subprocess
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from tools.logging.universal_logger import (
     get_run_id,
@@ -19,12 +19,12 @@ class LoRADSWrapper:
     """
     Wrapper v2 para LoRADS vía WSL.
 
-    Cambios importantes respecto a la versión anterior:
-    - crea el log del solver ANTES de lanzar el proceso;
-    - usa subprocess directamente con stdin=DEVNULL para evitar bloqueos raros;
-    - deja heartbeat en el log mientras la instancia sigue corriendo;
-    - hace hard-kill robusto si se excede el timeout del wrapper;
-    - mantiene el formato de salida normalizado usado por el tester.
+    Mejoras respecto a la versión anterior:
+    - separa target_tol (criterio externo del benchmark) de phase2_tol (tolerancia interna LoRADS);
+    - parsea y rescata el mejor iterado observado del log;
+    - no confía ciegamente en el resumen final si el solver se destruye numéricamente al final;
+    - clasifica mejor los estados de término;
+    - mantiene logging universal y log por instancia.
     """
 
     SOLVER_NAME = "lorads"
@@ -63,7 +63,12 @@ class LoRADSWrapper:
         global_cfg = self.config.get("global_settings", {})
         solver_cfg = self.config.get("solvers", {}).get("lorads", {})
 
+        # Criterio externo homogéneo del benchmark
         self.target_tol = float(global_cfg.get("tolerance_gap", 1e-6))
+
+        # Tolerancia interna de LoRADS (separada del criterio externo)
+        self.phase2_tol = float(solver_cfg.get("phase2_tol", 1e-5))
+
         self.max_iterations = int(global_cfg.get("max_iterations", 2000))
         self.time_limit_seconds = float(global_cfg.get("time_limit_seconds", 3600))
         self.verbose = int(global_cfg.get("verbose", 0))
@@ -103,6 +108,7 @@ class LoRADSWrapper:
             "Configuración cargada para LoRADSWrapper v2 (WSL)",
             extra={
                 "target_tol": self.target_tol,
+                "phase2_tol": self.phase2_tol,
                 "max_iterations": self.max_iterations,
                 "time_limit_seconds": self.time_limit_seconds,
                 "hard_kill_timeout_seconds": self.hard_kill_timeout_seconds,
@@ -231,7 +237,7 @@ class LoRADSWrapper:
         except Exception:
             return default
 
-    def _command_pretty(self, command: list[str]) -> str:
+    def _command_pretty(self, command: List[str]) -> str:
         try:
             return subprocess.list2cmdline(command)
         except Exception:
@@ -254,6 +260,7 @@ class LoRADSWrapper:
             f.write(f"instance_wsl_path: {instance_wsl_path}\n")
             f.write(f"run_id: {self.run_id}\n")
             f.write(f"target_tol: {self.target_tol}\n")
+            f.write(f"phase2_tol: {self.phase2_tol}\n")
             f.write(f"max_iterations: {self.max_iterations}\n")
             f.write(f"time_limit_seconds: {self.time_limit_seconds}\n")
             f.write(f"hard_kill_timeout_seconds: {self.hard_kill_timeout_seconds}\n\n")
@@ -301,7 +308,7 @@ class LoRADSWrapper:
 
     def _run_process_with_timeout(
         self,
-        command: list[str],
+        command: List[str],
         timeout: float,
         cwd: str,
         log_path: str,
@@ -424,12 +431,121 @@ class LoRADSWrapper:
             if heartbeat_thread.is_alive():
                 heartbeat_thread.join(timeout=1.5)
 
-    def _parse_output(
+    def _is_finite_metric(self, x: float) -> bool:
+        return not math.isnan(x) and not math.isinf(x)
+
+    def _valid_candidate_obj(self, x: float) -> bool:
+        if not self._is_finite_metric(x):
+            return False
+        return abs(x) < 1e100
+
+    def _candidate_score(
         self,
-        text: str,
-        instance_name: str,
-        exec_res: Dict[str, Any],
+        gap: float,
+        pinfeas: float,
+        dinfeas: float,
+    ) -> float:
+        vals = [v for v in [gap, pinfeas, dinfeas] if self._is_finite_metric(v)]
+        if not vals:
+            return float("inf")
+        return max(vals)
+
+    def _choose_better_candidate(
+        self,
+        current: Optional[Dict[str, Any]],
+        candidate: Dict[str, Any],
     ) -> Dict[str, Any]:
+        if current is None:
+            return candidate
+
+        curr_score = self._safe_float(current.get("phi_iter"), float("inf"))
+        cand_score = self._safe_float(candidate.get("phi_iter"), float("inf"))
+
+        if cand_score < curr_score:
+            return candidate
+        if cand_score > curr_score:
+            return current
+
+        curr_gap = self._safe_float(current.get("gap"), float("inf"))
+        cand_gap = self._safe_float(candidate.get("gap"), float("inf"))
+        if cand_gap < curr_gap:
+            return candidate
+        if cand_gap > curr_gap:
+            return current
+
+        curr_obj = self._safe_float(current.get("obj_val"), float("nan"))
+        curr_dual = self._safe_float(current.get("dual_obj"), float("nan"))
+        cand_obj = self._safe_float(candidate.get("obj_val"), float("nan"))
+        cand_dual = self._safe_float(candidate.get("dual_obj"), float("nan"))
+
+        curr_objdiff = abs(curr_obj - curr_dual) if self._is_finite_metric(curr_obj) and self._is_finite_metric(curr_dual) else float("inf")
+        cand_objdiff = abs(cand_obj - cand_dual) if self._is_finite_metric(cand_obj) and self._is_finite_metric(cand_dual) else float("inf")
+
+        if cand_objdiff < curr_objdiff:
+            return candidate
+
+        return current
+
+    def _parse_iter_candidates(self, text: str) -> Optional[Dict[str, Any]]:
+        """
+        Busca iterados intermedios tipo:
+        ALM OuterIter:0, pObj:-..., dObj:-..., pInfea(1):..., pInfea(Inf):..., dInfea(1):..., dInfea(Inf):..., pdGap:...
+        ADMM Iter:0,     pObj:-..., dObj:-..., pInfea(1):..., pInfea(Inf):..., dInfea(1):..., dInfea(Inf):..., pdGap:...
+
+        y rescata el mejor observado.
+        """
+        best = None
+
+        line_pattern = re.compile(
+            r"(?P<kind>ALM\s+OuterIter|ADMM\s+Iter)\s*:\s*(?P<iter>\d+)"
+            r".*?pObj\s*:\s*(?P<pobj>[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+            r".*?dObj\s*:\s*(?P<dobj>[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+            r".*?pInfea\(1\)\s*:\s*(?P<pinf1>[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+            r".*?pInfea\(Inf\)\s*:\s*(?P<pinfinf>[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+            r".*?dInfea\(1\)\s*:\s*(?P<dinf1>[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+            r".*?dInfea\(Inf\)\s*:\s*(?P<dinfinf>[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+            r".*?pdGap\s*:\s*(?P<gap>[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)",
+            flags=re.IGNORECASE,
+        )
+
+        for match in line_pattern.finditer(text):
+            kind_raw = match.group("kind").strip().lower()
+            phase = "ALM" if "outeriter" in kind_raw else "ADMM"
+            iteration = self._safe_int(match.group("iter"), 0)
+
+            obj_val = self._safe_float(match.group("pobj"))
+            dual_obj = self._safe_float(match.group("dobj"))
+            pinfeas = self._safe_float(match.group("pinf1"))
+            dinfeas = self._safe_float(match.group("dinf1"))
+            gap = self._safe_float(match.group("gap"))
+            pinf = self._safe_float(match.group("pinfinf"))
+            dinf = self._safe_float(match.group("dinfinf"))
+
+            if not self._valid_candidate_obj(obj_val):
+                continue
+
+            phi_iter = self._candidate_score(gap, pinfeas, dinfeas)
+            if not self._is_finite_metric(phi_iter):
+                continue
+
+            candidate = {
+                "source": "iter",
+                "phase": phase,
+                "iteration": iteration,
+                "obj_val": obj_val,
+                "dual_obj": dual_obj,
+                "gap": gap,
+                "pinfeas": pinfeas,
+                "dinfeas": dinfeas,
+                "pinf": pinf,
+                "dinf": dinf,
+                "phi_iter": phi_iter,
+            }
+            best = self._choose_better_candidate(best, candidate)
+
+        return best
+
+    def _parse_final_summary_candidate(self, text: str) -> Optional[Dict[str, Any]]:
         obj_val = self._extract_float(
             r"Primal Objective:\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)",
             text,
@@ -459,6 +575,33 @@ class LoRADSWrapper:
             text,
         )
 
+        if not self._valid_candidate_obj(obj_val):
+            return None
+
+        phi_iter = self._candidate_score(gap, pinfeas, dinfeas)
+        if not self._is_finite_metric(phi_iter):
+            return None
+
+        return {
+            "source": "summary",
+            "phase": "FINAL",
+            "iteration": 0,
+            "obj_val": obj_val,
+            "dual_obj": dual_obj,
+            "gap": gap,
+            "pinfeas": pinfeas,
+            "dinfeas": dinfeas,
+            "pinf": pinf,
+            "dinf": dinf,
+            "phi_iter": phi_iter,
+        }
+
+    def _parse_output(
+        self,
+        text: str,
+        instance_name: str,
+        exec_res: Dict[str, Any],
+    ) -> Dict[str, Any]:
         runtime = self._extract_float(
             r"all_time:\s*([+-]?\d+(?:\.\d+)?)",
             text,
@@ -475,29 +618,64 @@ class LoRADSWrapper:
         ]
         iterations = max(iter_candidates)
 
-        phi = float("nan")
-        optimal = False
-        if all(not math.isnan(v) for v in [gap, pinfeas, dinfeas]):
-            phi = max(gap, pinfeas, dinfeas)
-            optimal = phi <= self.target_tol
+        best_iter = self._parse_iter_candidates(text)
+        final_summary = self._parse_final_summary_candidate(text)
+
+        chosen = None
+        if best_iter is not None:
+            chosen = best_iter
+        if final_summary is not None:
+            chosen = self._choose_better_candidate(chosen, final_summary)
+
+        if chosen is None:
+            obj_val = float("nan")
+            dual_obj = float("nan")
+            gap = float("nan")
+            pinfeas = float("nan")
+            dinfeas = float("nan")
+            pinf = float("nan")
+            dinf = float("nan")
+            phi = float("nan")
+            metric_source = "none"
+            best_phase = None
+            best_iteration = 0
+        else:
+            obj_val = self._safe_float(chosen.get("obj_val"))
+            dual_obj = self._safe_float(chosen.get("dual_obj"))
+            gap = self._safe_float(chosen.get("gap"))
+            pinfeas = self._safe_float(chosen.get("pinfeas"))
+            dinfeas = self._safe_float(chosen.get("dinfeas"))
+            pinf = self._safe_float(chosen.get("pinf"))
+            dinf = self._safe_float(chosen.get("dinf"))
+            phi = self._safe_float(chosen.get("phi_iter"))
+            metric_source = str(chosen.get("source", "unknown"))
+            best_phase = chosen.get("phase")
+            best_iteration = self._safe_int(chosen.get("iteration"), 0)
+
+        optimal = self._is_finite_metric(phi) and phi <= self.target_tol
 
         low_text = text.lower()
         timed_out = bool(exec_res.get("timed_out"))
+        numerr = 1 if "numerical error" in low_text else 0
+        maxiter_hit = "maximum number of iterations" in low_text
+        end_program = "end program" in low_text
 
         if optimal:
             status = "OPTIMAL"
         elif timed_out or "time limit" in low_text:
             status = "TIME_LIMIT"
-        elif "maximum number of iterations" in low_text:
+        elif numerr and chosen is not None:
+            status = "NUMERICAL_ERROR"
+        elif numerr:
+            status = "FAILED"
+        elif maxiter_hit:
             status = "STOPPED"
-        elif "end program" in low_text:
+        elif end_program:
             status = "STOPPED"
         elif exec_res.get("returncode") == 0:
             status = "STOPPED"
         else:
             status = "FAILED"
-
-        numerr = 1 if "numerical error" in low_text else 0
 
         normalized = {
             "instance": instance_name,
@@ -515,6 +693,9 @@ class LoRADSWrapper:
             "pinf": pinf,
             "dinf": dinf,
             "feasratio": float("nan"),
+            "metric_source": metric_source,
+            "best_phase": best_phase,
+            "best_iteration": best_iteration,
         }
 
         log_event(
@@ -526,7 +707,7 @@ class LoRADSWrapper:
 
         return normalized
 
-    def _build_command(self, instance_path: str) -> list[str]:
+    def _build_command(self, instance_path: str) -> List[str]:
         instance_wsl = self._windows_to_wsl_path(instance_path)
 
         return [
@@ -535,7 +716,7 @@ class LoRADSWrapper:
             instance_wsl,
             "--timesLogRank", str(self.times_log_rank),
             "--phase1Tol", str(self.phase1_tol),
-            "--phase2Tol", str(self.target_tol),
+            "--phase2Tol", str(self.phase2_tol),
             "--initRho", str(self.init_rho),
             "--rhoMax", str(self.rho_max),
             "--rhoFreq", str(self.rho_freq),
@@ -587,6 +768,7 @@ class LoRADSWrapper:
                 "instance_wsl_path": instance_wsl_path,
                 "log_path": log_path,
                 "target_tol": self.target_tol,
+                "phase2_tol": self.phase2_tol,
                 "max_iterations": self.max_iterations,
                 "time_limit_seconds": self.time_limit_seconds,
                 "hard_kill_timeout_seconds": self.hard_kill_timeout_seconds,
@@ -665,6 +847,9 @@ class LoRADSWrapper:
                     "pinf": float("nan"),
                     "dinf": float("nan"),
                     "feasratio": float("nan"),
+                    "metric_source": "none",
+                    "best_phase": None,
+                    "best_iteration": 0,
                     "error": exec_res.get("error") or "LoRADS no produjo salida.",
                     "log_file": log_path,
                     "run_id": self.run_id,
@@ -726,6 +911,9 @@ class LoRADSWrapper:
                 "pinf": float("nan"),
                 "dinf": float("nan"),
                 "feasratio": float("nan"),
+                "metric_source": "none",
+                "best_phase": None,
+                "best_iteration": 0,
                 "error": f"{type(exc).__name__}: {exc}",
                 "log_file": log_path,
                 "run_id": self.run_id,
