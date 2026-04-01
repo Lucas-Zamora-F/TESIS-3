@@ -16,3 +16,6 @@
 [submodule "extern/scs"]
 	path = extern/scs
 	url = https://github.com/cvxgrp/scs.git
+[submodule "extern/InstanceSpace"]
+	path = extern/InstanceSpace
+	url = https://github.com/andremun/InstanceSpace
