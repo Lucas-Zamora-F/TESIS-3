@@ -124,15 +124,7 @@ def _safe_runtime(result: dict[str, Any]) -> float:
 
 
 def _instance_display_name(instance_path: Path) -> str:
-    """
-    Usa el nombre de la instancia sin extensión principal.
-    Ejemplo:
-    arch0.dat-s -> arch0
-    """
-    name = instance_path.name
-    if name.endswith(".dat-s"):
-        return name[:-6]
-    return instance_path.stem
+    return instance_path.name
 
 
 def build_solver_runtime_table(
