@@ -16,34 +16,6 @@
       "beta": 0.5,
       "theta": 0.25,
       "alg": 2
-    },
-    "lorads": {
-      "executable_path": "/home/lucas_zamora/lorads_build/lorads_src/build/LoRADS_v_2_0_1-alpha",
-      "wsl_command": "wsl",
-
-      "phase2_tol": 1e-5,
-      "times_log_rank": 1.2,
-      "phase1_tol": 1e-3,
-
-      "init_rho": 0.0,
-      "rho_max": 1000.0,
-      "rho_freq": 10,
-      "rho_factor": 1.1,
-      "alm_rho_factor": 1.5,
-
-      "heuristic_factor": 1.0,
-      "lbfgs_list_length": 2,
-
-      "end_tau_tol": 0.0,
-      "end_alm_sub_tol": 0.0,
-
-      "l2_rescaling": 1,
-      "reopt_level": 0,
-      "dyrank_level": 1,
-      "high_acc_mode": 1,
-
-      "hard_kill_timeout_seconds": 390,
-      "heartbeat_seconds": 15.0
     }
   }
 }
