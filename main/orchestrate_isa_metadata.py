@@ -6,10 +6,6 @@ from pathlib import Path
 
 import pandas as pd
 
-# -----------------------------------------------------------------------------
-# Bootstrap de imports para permitir ejecución directa con "Run Python File"
-# en VS Code, sin depender de "python -m ...".
-# -----------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 if str(REPO_ROOT) not in sys.path:
@@ -18,6 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 from main.build_features_table import build_features_table
 from main.build_solver_runtime_table import build_solver_runtime_table
 from main.build_isa_metadata_table import build_isa_metadata_table
+from tools.isa.run_matilda import run_matilda
 from tools.logging.universal_logger import (
     setup_universal_logger,
     log_event,
@@ -25,22 +22,21 @@ from tools.logging.universal_logger import (
 )
 
 
-def orchestrate_isa_metadata() -> pd.DataFrame:
+def orchestrate_isa_metadata(
+    run_matilda_step: bool = True,
+    use_all_instances: bool = False,
+) -> pd.DataFrame:
     """
-    Orquesta la construcción de la tabla final de metadata ISA.
+    Orquestador principal.
 
-    Flujo:
-        1. Lee las instancias habilitadas desde config/instances_config.json
-        2. Resuelve sus rutas reales en data/instances/sdplib
-        3. Construye features_table usando config/features_config.json
-        4. Construye solver_runtime_table usando config/solver_registry.json
-        5. Combina ambas tablas en metadata_df
-        6. Guarda metadata_df en ISA metadata/metadata.csv
+    Parámetros
+    ----------
+    run_matilda_step : bool
+        Ejecutar MATILDA al final.
 
-    Retorna
-    -------
-    pd.DataFrame
-        DataFrame final de metadata.
+    use_all_instances : bool
+        - False → usa enabled_instances del config
+        - True → usa TODAS las instancias en sdplib
     """
     setup_universal_logger()
 
@@ -57,153 +53,77 @@ def orchestrate_isa_metadata() -> pd.DataFrame:
             "orchestrator",
             "Starting ISA metadata orchestration.",
             extra={
-                "instances_config_path": str(instances_config_path),
-                "features_config_path": str(features_config_path),
-                "solver_registry_path": str(solver_registry_path),
-                "instances_dir": str(instances_dir),
-                "output_path": str(output_path),
+                "use_all_instances": use_all_instances,
+                "run_matilda_step": run_matilda_step,
             },
         )
 
-        enabled_instance_names = _load_enabled_instances(instances_config_path)
+        # ------------------------------------------------------------------
+        # 🔥 NUEVA LÓGICA DE SELECCIÓN DE INSTANCIAS
+        # ------------------------------------------------------------------
+        if use_all_instances:
+            enabled_instance_paths = _get_all_instances(instances_dir)
+            enabled_instance_names = [Path(p).name for p in enabled_instance_paths]
+
+            print("[INFO] Modo: TODAS las instancias")
+        else:
+            enabled_instance_names = _load_enabled_instances(instances_config_path)
+            enabled_instance_paths = _resolve_instance_paths(
+                instance_names=enabled_instance_names,
+                instances_dir=instances_dir,
+            )
+
+            print("[INFO] Modo: enabled_instances desde config")
 
         log_event(
             "INFO",
             "orchestrator",
-            "Loaded enabled instances from config.",
+            "Instances selected.",
             extra={
-                "enabled_instances": enabled_instance_names,
-                "count": len(enabled_instance_names),
-            },
-        )
-
-        enabled_instance_paths = _resolve_instance_paths(
-            instance_names=enabled_instance_names,
-            instances_dir=instances_dir,
-        )
-
-        log_event(
-            "INFO",
-            "orchestrator",
-            "Resolved enabled instance paths.",
-            extra={
-                "instance_paths": enabled_instance_paths,
                 "count": len(enabled_instance_paths),
+                "use_all_instances": use_all_instances,
             },
         )
 
         print("========================================")
         print("ISA METADATA ORCHESTRATOR")
         print("========================================")
-        print(f"[INFO] Instancias habilitadas: {len(enabled_instance_names)}")
-        for instance_name in enabled_instance_names:
-            print(f"  - {instance_name}")
+        print(f"[INFO] Instancias: {len(enabled_instance_paths)}")
 
         print("\n[INFO] Construyendo features_table...")
-        log_event(
-            "INFO",
-            "orchestrator",
-            "Calling build_features_table.",
-            extra={
-                "instances": enabled_instance_paths,
-                "config_path": str(features_config_path),
-            },
-        )
-
         features_table = build_features_table(
             enabled_instance_paths,
             str(features_config_path),
         )
         _validate_dataframe(features_table, "features_table")
 
-        log_event(
-            "INFO",
-            "orchestrator",
-            "features_table built successfully.",
-            extra={
-                "shape": list(features_table.shape),
-                "columns": features_table.columns.tolist(),
-            },
-        )
-
         print("[INFO] Construyendo solver_runtime_table...")
-        log_event(
-            "INFO",
-            "orchestrator",
-            "Calling build_solver_runtime_table.",
-            extra={
-                "instances": enabled_instance_paths,
-                "config_path": str(solver_registry_path),
-            },
-        )
-
         solver_runtime_table = build_solver_runtime_table(
             enabled_instance_paths,
             str(solver_registry_path),
         )
         _validate_dataframe(solver_runtime_table, "solver_runtime_table")
 
-        log_event(
-            "INFO",
-            "orchestrator",
-            "solver_runtime_table built successfully.",
-            extra={
-                "shape": list(solver_runtime_table.shape),
-                "columns": solver_runtime_table.columns.tolist(),
-            },
-        )
-
         print("[INFO] Construyendo metadata_df...")
-        log_event(
-            "INFO",
-            "orchestrator",
-            "Calling build_isa_metadata_table.",
-            extra={
-                "features_shape": list(features_table.shape),
-                "solver_runtime_shape": list(solver_runtime_table.shape),
-            },
-        )
-
         metadata_df = build_isa_metadata_table(
             features_table,
             solver_runtime_table,
         )
         _validate_dataframe(metadata_df, "metadata_df")
 
-        log_event(
-            "INFO",
-            "orchestrator",
-            "metadata_df built successfully.",
-            extra={
-                "shape": list(metadata_df.shape),
-                "columns": metadata_df.columns.tolist(),
-            },
-        )
-
         output_dir.mkdir(parents=True, exist_ok=True)
-
-        log_event(
-            "INFO",
-            "orchestrator",
-            "Saving metadata dataframe to CSV.",
-            extra={
-                "output_path": str(output_path),
-                "rows": len(metadata_df),
-            },
-        )
-
         metadata_df.to_csv(output_path, index=False)
 
-        log_event(
-            "INFO",
-            "orchestrator",
-            "ISA metadata orchestration finished successfully.",
-            extra={
-                "output_path": str(output_path),
-            },
-        )
-
         print(f"[OK] Metadata guardada en: {output_path}")
+
+        # ------------------------------------------------------------------
+        # MATILDA
+        # ------------------------------------------------------------------
+        if run_matilda_step:
+            print("\n[INFO] Ejecutando MATILDA...")
+            matilda_run_dir = run_matilda()
+            print(f"[OK] MATILDA corrio en: {matilda_run_dir}")
+
         return metadata_df
 
     except Exception as exc:
@@ -215,87 +135,58 @@ def orchestrate_isa_metadata() -> pd.DataFrame:
         raise
 
 
+# ----------------------------------------------------------------------
+# NUEVA FUNCIÓN
+# ----------------------------------------------------------------------
+def _get_all_instances(instances_dir: Path) -> list[str]:
+    """
+    Retorna TODAS las instancias .dat-s dentro de sdplib.
+    """
+    if not instances_dir.exists():
+        raise FileNotFoundError(f"No existe la carpeta: {instances_dir}")
+
+    instances = sorted(instances_dir.glob("*.dat-s"))
+
+    if not instances:
+        raise ValueError("No se encontraron archivos .dat-s en sdplib.")
+
+    return [str(p) for p in instances]
+
+
 def _load_enabled_instances(config_path: Path) -> list[str]:
-    """
-    Carga las instancias habilitadas desde config/instances_config.json.
-    """
     if not config_path.exists():
-        raise FileNotFoundError(
-            f"No se encontró el archivo de configuración de instancias: {config_path}"
-        )
+        raise FileNotFoundError(f"No se encontró: {config_path}")
 
     with open(config_path, "r", encoding="utf-8") as file:
         config = json.load(file)
 
-    if "enabled_instances" not in config:
-        raise ValueError(
-            "El archivo instances_config.json no contiene la clave 'enabled_instances'."
-        )
-
-    enabled_instances = config["enabled_instances"]
-
-    if not isinstance(enabled_instances, list):
-        raise TypeError("'enabled_instances' debe ser una lista.")
-
-    if not enabled_instances:
-        raise ValueError("La lista 'enabled_instances' está vacía.")
-
-    non_string_instances = [
-        instance_name
-        for instance_name in enabled_instances
-        if not isinstance(instance_name, str)
-    ]
-    if non_string_instances:
-        raise TypeError(
-            "Todas las entradas de 'enabled_instances' deben ser strings."
-        )
-
-    return enabled_instances
+    return config["enabled_instances"]
 
 
 def _resolve_instance_paths(
     instance_names: list[str],
     instances_dir: Path,
 ) -> list[str]:
-    """
-    Convierte nombres de instancia a rutas absolutas y valida que existan.
-    """
-    if not instances_dir.exists():
-        raise FileNotFoundError(
-            f"No existe la carpeta de instancias: {instances_dir}"
-        )
 
-    resolved_paths: list[str] = []
-    missing_instances: list[str] = []
+    resolved = []
+    for name in instance_names:
+        path = instances_dir / name
+        if not path.exists():
+            raise FileNotFoundError(f"No existe: {path}")
+        resolved.append(str(path))
 
-    for instance_name in instance_names:
-        instance_path = instances_dir / instance_name
-
-        if not instance_path.exists():
-            missing_instances.append(instance_name)
-            continue
-
-        resolved_paths.append(str(instance_path))
-
-    if missing_instances:
-        raise FileNotFoundError(
-            "No se encontraron las siguientes instancias en "
-            f"{instances_dir}: {missing_instances}"
-        )
-
-    return resolved_paths
+    return resolved
 
 
-def _validate_dataframe(df: pd.DataFrame, df_name: str) -> None:
-    """
-    Valida que el objeto retornado sea un DataFrame no vacío.
-    """
+def _validate_dataframe(df: pd.DataFrame, name: str) -> None:
     if not isinstance(df, pd.DataFrame):
-        raise TypeError(f"{df_name} debe ser un pandas.DataFrame.")
-
+        raise TypeError(f"{name} no es DataFrame")
     if df.empty:
-        raise ValueError(f"{df_name} está vacío.")
+        raise ValueError(f"{name} está vacío")
 
 
 if __name__ == "__main__":
-    orchestrate_isa_metadata()
+    orchestrate_isa_metadata(
+        run_matilda_step=True,
+        use_all_instances=True,
+    )
