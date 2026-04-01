@@ -32,7 +32,6 @@ def main():
 
     instance_dir = os.path.join(project_root, "data", "instances", "sdplib")
 
-    # ✅ CAMBIO AQUÍ
     config_file = os.path.join(project_root, "config", "solver_config.json")
 
     print("========================================")
