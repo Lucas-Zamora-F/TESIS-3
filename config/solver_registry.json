@@ -1,0 +1,20 @@
+{
+  "enabled_solvers": [
+    "sdpt3",
+    "sedumi"
+  ],
+  "available_solvers": {
+    "matlab_solvers": {
+      "sdpt3": {
+        "display_name": "SDPT3",
+        "wrapper_module": "tools.wrappers_v2.sdpt3_wrapper",
+        "wrapper_class": "SDPT3Wrapper"
+      },
+      "sedumi": {
+        "display_name": "SeDuMi",
+        "wrapper_module": "tools.wrappers_v2.sedumi_wrapper",
+        "wrapper_class": "SeDuMiWrapper"
+      }
+    }
+  }
+}
