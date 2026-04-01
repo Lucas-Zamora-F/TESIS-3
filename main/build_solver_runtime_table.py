@@ -166,7 +166,7 @@ def build_solver_runtime_table(
         normalized_instances.append(instance_path)
 
     if not normalized_instances:
-        return pd.DataFrame(columns=["Instance"])
+        return pd.DataFrame(columns=["Instances"])
 
     wrappers: dict[str, Any] = {}
     rows: list[dict[str, Any]] = []
