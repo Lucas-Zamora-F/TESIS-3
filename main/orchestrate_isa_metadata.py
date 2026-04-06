@@ -58,9 +58,6 @@ def orchestrate_isa_metadata(
             },
         )
 
-        # ------------------------------------------------------------------
-        # 🔥 NUEVA LÓGICA DE SELECCIÓN DE INSTANCIAS
-        # ------------------------------------------------------------------
         if use_all_instances:
             enabled_instance_paths = _get_all_instances(instances_dir)
             enabled_instance_names = [Path(p).name for p in enabled_instance_paths]
@@ -135,9 +132,7 @@ def orchestrate_isa_metadata(
         raise
 
 
-# ----------------------------------------------------------------------
-# NUEVA FUNCIÓN
-# ----------------------------------------------------------------------
+
 def _get_all_instances(instances_dir: Path) -> list[str]:
     """
     Retorna TODAS las instancias .dat-s dentro de sdplib.
