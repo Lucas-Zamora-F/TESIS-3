@@ -1,45 +1,97 @@
 # TESIS-3
 
-Framework modular para ejecutar, evaluar y comparar solvers de **programación semidefinida (SDP)** sobre instancias estándar, con un flujo coordinado desde Python y soporte para integración con MATLAB.
+Framework modular para ejecutar, evaluar y comparar solvers de programación semidefinida (SDP) sobre instancias estándar, con coordinación desde Python, integración con MATLAB y generación de metadata para análisis en Instance Space / MATILDA.
 
 ---
 
 ## 1. Objetivo del repositorio
 
-Este proyecto busca construir una base de experimentación ordenada para benchmarking de solvers SDP. La idea principal es que cada solver pueda ejecutarse bajo una interfaz homogénea, de modo que:
+Este proyecto busca construir una base de experimentación reproducible para benchmarking de solvers SDP. La idea central es que distintas herramientas de resolución puedan ejecutarse bajo una interfaz homogénea, de manera que:
 
-- todas las instancias se resuelvan desde una misma estructura de proyecto,
-- la configuración esté centralizada,
-- los resultados finales queden normalizados,
-- y la ejecución sea reproducible y trazable.
+- las instancias se procesen desde una estructura común,
+- la configuración esté centralizada en archivos JSON,
+- los resultados se normalicen en un formato comparable,
+- el flujo completo quede trazable mediante logging,
+- y los datos finales puedan utilizarse para análisis de desempeño mediante Instance Space.
 
 ---
 
-## 2. Estructura actual del repositorio
+## 2. Estado actual del proyecto
 
-```
+Actualmente el repositorio ya permite:
+
+- definir subconjuntos de instancias a usar desde `config/instances_config.json`,
+- alternativamente, ejecutar el pipeline sobre todas las instancias disponibles en el dataset,
+- calcular tablas de features estructurales y numéricas de forma configurable mediante `config/features_config.json`,
+- ejecutar solvers habilitados desde un registro central (`config/solver_registry.json`) usando wrappers dinámicos,
+- construir una tabla de runtimes con formato estandarizado (`algo_<solver>`),
+- combinar features y resultados en una tabla final de metadata,
+- estandarizar dicha metadata para compatibilidad con Instance Space (columna `Instances`),
+- guardar la metadata en `ISA metadata/metadata.csv`,
+- y ejecutar MATILDA / InstanceSpace utilizando configuración externa (`config/instance_space_config.json`).
+
+Los solvers actualmente habilitados en el registro son:
+
+- `sdpt3`
+- `sedumi`
+
+---
+
+## 3. Estructura del repositorio
+
+```text
 TESIS-3/
+├── ISA metadata/
+│   └── metadata.csv
+│
 ├── config/
-│   └── solver_config.json
+│   ├── features_config.json
+│   ├── instance_space_config.json
+│   ├── instances_config.json
+│   ├── solver_config.json
+│   └── solver_registry.json
 │
 ├── data/
 │   └── instances/
 │       └── sdplib/
 │
+├── examples/
+│   └── matilda_run/
+│
 ├── extern/
 │   ├── InstanceSpace/
+│   ├── InstanceSpace87fe24e/
 │   ├── sdpt3/
 │   └── sedumi/
 │
+├── logs/
+│   └── benchmark_audit.log
+│
+├── main/
+│   ├── build_features_table.py
+│   ├── build_isa_metadata_table.py
+│   ├── build_solver_runtime_table.py
+│   └── orchestrate_isa_metadata.py
+│
+├── matilda_out/
+│   └── run_YYYYMMDD_HHMMSS/
+│
+├── sandbox/
+│
 ├── tools/
+│   ├── features/
 │   ├── installation/
+│   ├── isa/
 │   ├── logging/
 │   ├── matlab/
 │   ├── runners/
 │   └── wrappers_v2/
 │
-├── requirements.txt
-└── README.md
+├── .gitignore
+├── .gitmodules
+├── LICENSE
+├── README.md
+└── requirements.txt
 ```
 
 ---
@@ -48,11 +100,15 @@ TESIS-3/
 
 ### 3.1 `config/`
 
-Aquí se encuentra `solver_config.json`, que define:
+Contiene toda la configuración central del framework, separando completamente lógica de código y parámetros experimentales.
 
-- parámetros globales de ejecución,
-- configuración específica por solver,
-- separación entre ajustes comunes y ajustes particulares.
+Archivos principales:
+
+- `solver_config.json`: define parámetros globales y específicos por solver
+- `solver_registry.json`: define qué solvers están habilitados y cómo cargarlos dinámicamente
+- `features_config.json`: define qué features se calculan y cuáles existen
+- `instances_config.json`: define qué instancias usar
+- `instance_space_config.json`: configuración de MATILDA / Instance Space
 
 Actualmente incluye:
 
@@ -65,7 +121,13 @@ Actualmente incluye:
 - `solvers.sdpt3`
 - `solvers.sedumi`
 
-Esta organización permite modificar el comportamiento del framework sin alterar directamente el código de los wrappers.
+Además:
+
+- `solver_registry.json` permite desacoplar completamente los solvers del código mediante carga dinámica de wrappers
+- `features_config.json` permite seleccionar features sin modificar código
+- `instances_config.json` permite controlar el subconjunto de instancias a utilizar
+
+Esta organización permite modificar el comportamiento del framework sin alterar directamente el código.
 
 ---
 
@@ -73,15 +135,33 @@ Esta organización permite modificar el comportamiento del framework sin alterar
 
 Contiene las instancias SDP en formato `.dat-s`, utilizadas como input para todos los solvers.
 
+El sistema puede:
+
+- usar solo instancias definidas en `config/instances_config.json`
+- o usar todas las instancias disponibles en esta carpeta
+
 ---
 
-### 3.3 `extern/`
+### 3.3 `examples/`
 
-Agrupa dependencias externas necesarias para ejecutar los solvers.
+Contiene ejemplos persistentes de corridas del sistema.
 
-Repositorios utilizados:
+En particular:
+
+- `matilda_run/`: ejemplo de ejecución completa de MATILDA, conservado como referencia
+
+Esta carpeta permite mantener resultados reproducibles que no deben ser sobrescritos ni ignorados por git.
+
+---
+
+### 3.4 `extern/`
+
+Agrupa dependencias externas necesarias para ejecutar los solvers y análisis.
+
+Incluye:
 
 - InstanceSpace
+- InstanceSpace87fe24e (versión congelada para compatibilidad)
 - SeDuMi
 - SDPT3
 
@@ -91,82 +171,472 @@ Para agregar estos submódulos:
 git submodule add https://github.com/andremun/InstanceSpace extern/InstanceSpace
 git submodule add https://github.com/sqlp/sedumi extern/sedumi
 git submodule add https://github.com/sqlp/sdpt3 extern/sdpt3
+
 ```
-
----
-
-### 3.4 `tools/`
-
-Contiene la lógica principal del framework.
-
-#### `wrappers_v2/`
-
-Implementa los wrappers de cada solver. Cada wrapper se encarga de:
-
-1. cargar la configuración,
-2. preparar el entorno,
-3. ejecutar el solver,
-4. capturar la salida,
-5. normalizar los resultados.
-
-#### `runners/`
-
-Encapsula mecanismos de ejecución, como la integración con MATLAB.
-
-#### `logging/`
-
-Contiene el sistema de logging unificado para registrar ejecuciones.
-
-#### `installation/`
-
-Scripts auxiliares para configurar el entorno.
-
-#### `matlab/`
-
-Componentes asociados a la integración con MATLAB.
 
 ---
 
 ## 4. Flujo general de ejecución
 
-_Pendiente de implementación._
+El flujo principal del sistema está orquestado por:
+
+main/orchestrate_isa_metadata.py
+
+Este script coordina todo el pipeline de forma secuencial.
+
+---
+
+### Paso 1: Inicialización
+
+- Se carga la configuración desde `config/`
+- Se inicializa el sistema de logging (`logs/benchmark_audit.log`)
+- Se determinan los parámetros de ejecución:
+  - `use_all_instances`
+  - `run_matilda_step`
+
+---
+
+### Paso 2: Selección de instancias
+
+Dependiendo del parámetro `use_all_instances`:
+
+- Si es `False`:
+  - se cargan las instancias desde `config/instances_config.json` → `enabled_instances`
+
+- Si es `True`:
+  - se toman todas las instancias `.dat-s` disponibles en:
+    data/instances/sdplib/
+
+El resultado es una lista de rutas a instancias que se utilizarán en todo el pipeline.
+
+---
+
+### Paso 3: Construcción de tabla de features
+
+Script ejecutado:
+main/build_features_table.py
+
+Proceso:
+
+1. Se carga `config/features_config.json`
+2. Se identifican las `enabled_features`
+3. Se recorren las instancias seleccionadas
+4. Para cada grupo de features:
+   - se importa dinámicamente el extractor correspondiente
+   - se calculan solo las features habilitadas
+5. Se construye un DataFrame con:
+
+Instance | feature_*
+
+Este DataFrame se mantiene en memoria (no se guarda en disco en esta etapa).
+
+---
+
+### Paso 4: Ejecución de solvers
+
+Script ejecutado:
+main/build_solver_runtime_table.py
+
+Proceso:
+
+1. Se carga `config/solver_registry.json`
+2. Se identifican los `enabled_solvers`
+3. Para cada solver:
+   - se carga dinámicamente su wrapper (`wrappers_v2`)
+4. Para cada instancia:
+   - se ejecuta cada solver
+   - el wrapper:
+     - prepara el entorno MATLAB
+     - ejecuta el solver
+     - captura resultados
+     - normaliza métricas
+5. Se construye un DataFrame con:
+
+Instance | algo_sdpt3 | algo_sedumi
+
+Cada columna representa el tiempo de ejecución del solver para cada instancia.
+
+---
+
+### Paso 5: Construcción de metadata final
+
+Script ejecutado:
+main/build_isa_metadata_table.py
+
+Proceso:
+
+1. Se reciben:
+   - `features_df`
+   - `solver_runtime_df`
+2. Se realiza un merge por la columna `Instance`
+3. Se renombra la columna a `Instances` (requisito de MATILDA)
+4. Se ordenan las columnas
+
+Resultado:
+
+Instances | feature_* | algo_*
+
+---
+
+### Paso 6: Guardado de metadata
+
+El resultado final se guarda en:
+
+ISA metadata/metadata.csv
+
+Este archivo es el input directo para Instance Space.
+
+---
+
+### Paso 7: Ejecución de MATILDA (opcional)
+
+Si `run_matilda_step = True`, se ejecuta:
+
+tools/isa/run_matilda.py
+
+Proceso:
+
+1. Se carga:
+   - metadata.csv
+   - `config/instance_space_config.json`
+2. Se crea una carpeta de ejecución:
+
+matilda_out/run_YYYYMMDD_HHMMSS/
+
+3. Se copian:
+   - metadata
+   - configuración (`options.json`)
+4. Se inicia MATLAB
+5. Se ejecuta InstanceSpace (`buildIS`)
+
+---
+
+### Paso 8: Resultados
+
+Los resultados de MATILDA quedan en:
+
+matilda_out/run_YYYYMMDD_HHMMSS/
+
+Mientras que la metadata base queda en:
+
+ISA metadata/metadata.csv
+
+---
+
+## Resumen del flujo
+
+Instancias  
+→ Features  
+→ Solvers  
+→ Metadata  
+→ (Opcional) MATILDA  
+→ Resultados
 
 ---
 
 ## 5. Resultado estándar esperado
 
-_Pendiente de definición._
+El resultado principal del pipeline es una tabla de metadata consolidada que combina:
+
+- información estructural de las instancias (features),
+- y desempeño de los solvers (runtimes).
+
+Esta tabla se guarda en:
+
+ISA metadata/metadata.csv
+
+---
+
+### Estructura general
+
+La tabla debe cumplir con el siguiente formato:
+
+Instances | feature_* | algo_*
+
+Donde:
+
+- `Instances`: nombre de la instancia (incluye extensión `.dat-s`)
+- `feature_*`: características estructurales y numéricas
+- `algo_*`: métricas de desempeño de los solvers (actualmente, tiempo de ejecución)
+
+---
+
+### Ejemplo
+
+Instances | feature_m | feature_n_blocks | feature_b_l2_norm | algo_sdpt3 | algo_sedumi  
+arch0.dat-s | ... | ... | ... | 12.53 | 8.91  
+arch2.dat-s | ... | ... | ... | 20.11 | 14.77  
+
+---
+
+### Reglas del formato
+
+- La primera columna debe llamarse exactamente `Instances` (requisito de MATILDA)
+- Los nombres de instancias deben conservar la extensión `.dat-s`
+- Todas las features deben comenzar con el prefijo `feature_`
+- Todas las métricas de solvers deben comenzar con el prefijo `algo_`
+- Cada fila representa una instancia única
+- No deben existir duplicados en la columna `Instances`
+
+---
+
+### Consideraciones sobre las métricas
+
+- Actualmente, las columnas `algo_*` representan el tiempo de ejecución de cada solver
+- El criterio implícito es: **menor valor = mejor desempeño**
+- Todas las métricas deben ser comparables entre solvers
+
+---
+
+### Uso del resultado
+
+Este archivo es utilizado como input para:
+
+tools/isa/run_matilda.py
+
+y posteriormente por Instance Space (MATILDA) para:
+
+- análisis de desempeño,
+- visualización de instancias,
+- construcción de espacios de instancia,
+- y generación de modelos de predicción de solvers.
+
+---
+
+### Consistencia
+
+Este formato actúa como contrato entre:
+
+- el pipeline de generación de datos,
+- y la etapa de análisis (MATILDA),
+
+por lo que cualquier modificación en la estructura debe mantener compatibilidad con Instance Space.
 
 ---
 
 ## 6. Dependencias
 
-El proyecto depende de:
+El proyecto requiere dependencias tanto en Python como en MATLAB, además de repositorios externos para los solvers.
 
-- Python
+---
+
+### Python
+
+Dependencias principales:
+
+- Python 3.10+
 - pandas
-- MATLAB Engine para Python
-- Toolboxes de MATLAB (según solver)
+- numpy
+- scipy
+- matplotlib
+
+Estas dependencias están definidas en:
+
+requirements.txt
+
+Instalación:
+
+pip install -r requirements.txt
+
+---
+
+### MATLAB
+
+Se requiere:
+
+- MATLAB instalado
+- MATLAB Engine API for Python
+
+Para instalar el engine:
+
+```bash
+cd "MATLAB_ROOT/extern/engines/python"
+python -m pip install .
+```
 
 ---
 
 ## 7. Cómo ejecutar
 
-_Pendiente de implementación._
+El punto de entrada principal del proyecto es:
+
+main/orchestrate_isa_metadata.py
+
+Este script coordina la selección de instancias, la construcción de features, la ejecución de solvers, la generación de metadata y, opcionalmente, la ejecución de MATILDA.
+
+---
+
+### 7.1 Preparar el entorno
+
+Instalar dependencias Python:
+
+pip install -r requirements.txt
+
+Inicializar submódulos:
+
+git submodule sync --recursive
+git submodule update --init --recursive
+
+Si se desea, también puede ejecutarse el script de preparación del entorno:
+
+python tools/installation/setup_env.py
+
+---
+
+### 7.2 Ejecutar el pipeline principal
+
+Desde la raíz del repositorio:
+
+python main/orchestrate_isa_metadata.py
+
+Esto ejecuta el flujo completo definido en el orquestador.
+
+---
+
+### 7.3 Ejecutar desde Python
+
+También es posible importar y ejecutar el orquestador directamente:
+
+from main.orchestrate_isa_metadata import orchestrate_isa_metadata
+
+metadata_df = orchestrate_isa_metadata(
+    run_matilda_step=False,
+    use_all_instances=False
+)
+
+Parámetros principales:
+
+- `run_matilda_step`: si es `True`, ejecuta MATILDA al final del pipeline
+- `use_all_instances`: si es `True`, usa todas las instancias disponibles en `data/instances/sdplib/`; si es `False`, usa solo las definidas en `config/instances_config.json`
+
+---
+
+### 7.4 Ejecutar usando solo instancias habilitadas
+
+Configuración típica:
+
+- definir las instancias en `config/instances_config.json`
+- ejecutar con:
+
+from main.orchestrate_isa_metadata import orchestrate_isa_metadata
+
+metadata_df = orchestrate_isa_metadata(
+    run_matilda_step=False,
+    use_all_instances=False
+)
+
+---
+
+### 7.5 Ejecutar usando todas las instancias del dataset
+
+from main.orchestrate_isa_metadata import orchestrate_isa_metadata
+
+metadata_df = orchestrate_isa_metadata(
+    run_matilda_step=False,
+    use_all_instances=True
+)
+
+---
+
+### 7.6 Ejecutar con MATILDA
+
+Para correr también la etapa de Instance Space:
+
+from main.orchestrate_isa_metadata import orchestrate_isa_metadata
+
+metadata_df = orchestrate_isa_metadata(
+    run_matilda_step=True,
+    use_all_instances=False
+)
+
+Esto generará:
+
+- la metadata en `ISA metadata/metadata.csv`
+- una carpeta de salida en `matilda_out/run_YYYYMMDD_HHMMSS/`
+
+---
+
+### 7.7 Salidas esperadas
+
+Después de una ejecución exitosa, el proyecto debe generar:
+
+- `ISA metadata/metadata.csv`
+- logs en `logs/benchmark_audit.log`
+- si MATILDA está habilitado, una nueva carpeta en `matilda_out/`
+
+---
+
+### 7.8 Recomendación de uso
+
+Para pruebas rápidas, se recomienda:
+
+- usar pocas instancias en `enabled_instances`
+- ejecutar primero con `run_matilda_step=False`
+- verificar la metadata generada
+- luego habilitar `run_matilda_step=True` para lanzar MATILDA
 
 ---
 
 ## 8. Estado actual del proyecto
 
-El repositorio actualmente cuenta con:
+El repositorio se encuentra en una etapa funcional y estable para benchmarking reproducible de solvers SDP.
 
-- configuración centralizada,
-- instancias organizadas,
-- dependencias externas separadas,
-- wrappers para SDPT3 y SeDuMi,
-- sistema de logging,
-- soporte para ejecución mediante runners.
+Actualmente, el sistema:
 
+- cuenta con un pipeline completo desde instancias hasta análisis en Instance Space,
+- permite configuración flexible mediante archivos JSON (sin hardcodeo),
+- implementa una arquitectura modular basada en builders, wrappers y orquestador,
+- soporta ejecución de múltiples solvers bajo una interfaz homogénea,
+- y genera metadata directamente utilizable por MATILDA.
+
+---
+
+### Nivel de madurez
+
+El proyecto ya no es un prototipo aislado, sino un framework estructurado que permite:
+
+- repetir experimentos de forma consistente,
+- agregar nuevas features sin modificar el pipeline,
+- integrar nuevos solvers mediante wrappers,
+- y escalar el número de instancias analizadas.
+
+---
+
+### Componentes completamente operativos
+
+- pipeline de features (`build_features_table.py`)
+- pipeline de runtimes de solvers (`build_solver_runtime_table.py`)
+- construcción de metadata (`build_isa_metadata_table.py`)
+- orquestador principal (`orchestrate_isa_metadata.py`)
+- integración con MATILDA (`run_matilda.py`)
+- sistema de logging unificado
+
+---
+
+### Limitaciones actuales
+
+- número limitado de solvers integrados (`sdpt3`, `sedumi`)
+- dependencia directa de MATLAB para ejecución de solvers
+- ejecución secuencial (sin paralelización avanzada en Python)
+- validación limitada de errores en wrappers (dependiente del solver)
+- dependencia de versiones específicas de InstanceSpace para compatibilidad
+
+---
+
+### Próximas extensiones naturales
+
+La arquitectura actual permite extender el sistema en varias direcciones:
+
+- agregar nuevos solvers mediante nuevos wrappers
+- incorporar paralelización en la ejecución de instancias
+- ampliar el conjunto de features disponibles
+- integrar nuevos runners (por ejemplo, ejecución vía CLI)
+- mejorar validación y manejo de errores
+- automatizar experimentos a mayor escala
+
+---
+
+En su estado actual, el repositorio ya es utilizable como base para experimentación sistemática en benchmarking de solvers SDP y análisis mediante Instance Space.
 ---
 
 ## 9. Features
@@ -730,12 +1200,114 @@ Esta sección queda reservada para futuras familias de features, por ejemplo:
 
 ## 10. Convención general
 
-- `data/`: instancias
-- `config/`: configuración
-- `tools/wrappers_v2/`: wrappers
-- `tools/runners/`: ejecución
-- `tools/logging/`: logs
+## 10. Convención general
 
+El proyecto sigue un conjunto de convenciones para asegurar consistencia, trazabilidad y compatibilidad entre componentes.
+
+---
+
+### Nombres de instancias
+
+- Las instancias deben conservar su nombre original de archivo
+- Siempre deben incluir la extensión `.dat-s`
+- La identificación de cada instancia se basa exclusivamente en este nombre
+
+Ejemplo:
+
+arch0.dat-s  
+arch2.dat-s  
+
+---
+
+### Columnas de datos
+
+Se utilizan prefijos estándar para distinguir tipos de información:
+
+- `feature_*`: características estructurales o numéricas
+- `algo_*`: métricas de desempeño de los solvers
+
+Ejemplo:
+
+feature_m  
+feature_n_blocks  
+algo_sdpt3  
+algo_sedumi  
+
+---
+
+### Columna principal
+
+- La tabla final debe contener una columna llamada exactamente:
+
+Instances
+
+- Esta columna es obligatoria para compatibilidad con MATILDA
+- Debe ser la primera columna del DataFrame
+
+---
+
+### Estructura de metadata
+
+- Cada fila representa una instancia única
+- No deben existir duplicados en `Instances`
+- Todas las columnas deben ser consistentes entre ejecuciones
+
+---
+
+### Configuración
+
+- Toda configuración debe residir en la carpeta `config/`
+- No se deben hardcodear parámetros en los scripts
+- Los cambios experimentales deben realizarse vía archivos JSON
+
+---
+
+### Solvers
+
+- Los solvers deben integrarse mediante wrappers en `tools/wrappers_v2/`
+- Cada solver debe declararse en `solver_registry.json`
+- Las métricas deben seguir el formato estándar del proyecto
+
+---
+
+### Logging
+
+- Todas las ejecuciones deben registrarse en:
+
+logs/benchmark_audit.log
+
+- El logging debe permitir trazabilidad completa del pipeline
+
+---
+
+### Reproducibilidad
+
+- Los resultados deben ser reproducibles a partir de:
+  - las instancias
+  - los archivos de configuración
+  - la versión de los submódulos externos
+
+---
+
+### Estructura del proyecto
+
+- Separación estricta entre:
+  - configuración (`config/`)
+  - lógica (`main/`, `tools/`)
+  - datos (`data/`)
+  - resultados (`ISA metadata/`, `matilda_out/`, `examples/`)
+
+---
+
+### Uso de git
+
+- `matilda_out/` contiene resultados generados → no versionados
+- `examples/` contiene corridas de referencia → sí versionadas
+- `logs/benchmark_audit.log` se mantiene persistente
+
+---
+
+Estas convenciones permiten mantener un flujo consistente, extensible y reproducible a lo largo del desarrollo del proyecto.
 ---
 
 ## 11. Licencia
