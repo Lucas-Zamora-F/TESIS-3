@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.frontend.components.features_editor import FeaturesEditor
+from app.frontend.components.instances_editor import InstancesEditor
 from app.frontend.components.sidebar_button import SidebarButton
 
 
@@ -201,10 +202,7 @@ class ParametersPage(QWidget):
             "This workspace will contain the editor for instance_space_config.json."
         )
 
-        instances_page = self.build_section_page(
-            "Instances",
-            "This workspace will contain the editor for instances_config.json."
-        )
+        instances_page = InstancesEditor()
 
         solvers_page = self.build_section_page(
             "Solvers",
