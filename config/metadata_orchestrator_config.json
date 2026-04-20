@@ -1,0 +1,24 @@
+{
+  "instances": {
+    "mode": "enabled"
+  },
+  "pipeline": {
+    "source_table": {
+      "mode": "build"
+    },
+    "features_table": {
+      "mode": "build"
+    },
+    "solver_runtime_table": {
+      "mode": "build"
+    }
+  },
+  "output": {
+    "save_metadata": true,
+    "metadata_path": "ISA metadata/metadata.csv"
+  },
+  "logging": {
+    "enabled": true,
+    "level": "INFO"
+  }
+}

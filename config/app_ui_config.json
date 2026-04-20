@@ -1,0 +1,23 @@
+{
+  "ui": {
+    "compact_mode": false,
+    "show_technical_names": true,
+    "confirm_before_close": true,
+    "confirm_before_reset": true,
+    "auto_reload_after_save": false,
+    "show_quick_actions": true,
+    "show_path_status": true,
+    "default_section": "General"
+  },
+  "behavior": {
+    "open_folders_in_system_explorer": true
+  },
+  "project": {
+    "config_dir": "config",
+    "instances_dir": "data/instances/sdplib",
+    "logs_dir": "logs",
+    "metadata_dir": "ISA metadata",
+    "intermediates_dir": "ISA metadata/intermediates",
+    "matilda_out_dir": "matilda_out"
+  }
+}

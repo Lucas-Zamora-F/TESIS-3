@@ -69,6 +69,7 @@ class ParametersPage(QWidget):
     open_home = Signal()
     open_configuration = Signal()
     open_parameters = Signal()
+    open_metadata = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -132,6 +133,14 @@ class ParametersPage(QWidget):
         parameters_button.set_active(True)
         parameters_button.clicked.connect(self.open_parameters.emit)
 
+        metadata_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/metadata_icon.png",
+            tooltip_text="Metadata",
+            icon_size=24,
+            button_size=48,
+        )
+        metadata_button.clicked.connect(self.open_metadata.emit)
+
         settings_button = SidebarButton(
             icon_relative_path="app/frontend/assets/icons/settings_icon.png",
             tooltip_text="Configuration",
@@ -142,6 +151,7 @@ class ParametersPage(QWidget):
 
         left_sidebar_layout.addWidget(home_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(parameters_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        left_sidebar_layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addStretch()
         left_sidebar_layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
 
