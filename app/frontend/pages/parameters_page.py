@@ -4,14 +4,16 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
-    QStackedWidget,
 )
 
 from app.frontend.components.features_editor import FeaturesEditor
+from app.frontend.components.instance_space_editor import InstanceSpaceEditor
 from app.frontend.components.instances_editor import InstancesEditor
 from app.frontend.components.sidebar_button import SidebarButton
+from app.frontend.components.solvers_editor import SolversEditor
 
 
 class SectionButton(QPushButton):
@@ -196,18 +198,10 @@ class ParametersPage(QWidget):
         """)
 
         features_page = FeaturesEditor()
-
-        instance_spaces_page = self.build_section_page(
-            "Instance Spaces",
-            "This workspace will contain the editor for instance_space_config.json."
-        )
-
+        instance_spaces_page = InstanceSpaceEditor()
         instances_page = InstancesEditor()
 
-        solvers_page = self.build_section_page(
-            "Solvers",
-            "This workspace will contain the editor for solver_config.json and solver_registry.json."
-        )
+        solvers_page = SolversEditor()
 
         self.content_stack.addWidget(features_page)
         self.content_stack.addWidget(instance_spaces_page)
@@ -243,6 +237,14 @@ class ParametersPage(QWidget):
             background: transparent;
         """)
 
+        subtitle = QLabel(subtitle_text)
+        subtitle.setWordWrap(True)
+        subtitle.setStyleSheet("""
+            font-size: 13px;
+            color: #a8a8a8;
+            background: transparent;
+        """)
+
         placeholder = QFrame()
         placeholder.setMinimumHeight(500)
         placeholder.setStyleSheet("""
@@ -254,6 +256,7 @@ class ParametersPage(QWidget):
         """)
 
         layout.addWidget(title)
+        layout.addWidget(subtitle)
         layout.addWidget(placeholder, 1)
 
         page.setLayout(layout)
