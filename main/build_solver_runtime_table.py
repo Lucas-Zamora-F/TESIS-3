@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
-import math
+import sys
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -12,24 +12,35 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTRY_PATH = PROJECT_ROOT / "config" / "solver_registry.json"
 DEFAULT_SOLVER_CONFIG_PATH = PROJECT_ROOT / "config" / "solver_config.json"
+DEFAULT_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "sdplib"
+DEFAULT_OUTPUT_PATH = (
+    PROJECT_ROOT / "ISA metadata" / "intermediates" / "solver_runtime_table.csv"
+)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
+    """
+    Load and validate a JSON file.
+    """
     if not path.exists():
-        raise FileNotFoundError(f"No se encontró el archivo: {path}")
+        raise FileNotFoundError(f"File not found: {path}")
 
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     if not isinstance(data, dict):
-        raise ValueError(f"El archivo {path} no contiene un objeto JSON válido")
+        raise ValueError(f"File does not contain a valid JSON object: {path}")
 
     return data
 
 
-def _flatten_available_solvers(available_solvers: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def _flatten_available_solvers(
+    available_solvers: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
     """
-    Aplana la estructura available_solvers para permitir grupos como:
+    Flatten the available_solvers structure.
+
+    Supports grouped structures such as:
     {
         "matlab_solvers": {
             "sdpt3": {...},
@@ -37,7 +48,7 @@ def _flatten_available_solvers(available_solvers: dict[str, Any]) -> dict[str, d
         }
     }
 
-    y también soporta una estructura plana:
+    and also flat structures such as:
     {
         "sdpt3": {...},
         "sedumi": {...}
@@ -47,11 +58,11 @@ def _flatten_available_solvers(available_solvers: dict[str, Any]) -> dict[str, d
 
     for key, value in available_solvers.items():
         if isinstance(value, dict):
-            # Caso 1: estructura agrupada
-            # e.g. "matlab_solvers": {"sdpt3": {...}, "sedumi": {...}}
             nested_solver_like = all(isinstance(v, dict) for v in value.values())
+
             if nested_solver_like and any(
-                isinstance(v, dict) and (
+                isinstance(v, dict)
+                and (
                     "wrapper_module" in v
                     or "wrapper_class" in v
                     or "display_name" in v
@@ -63,33 +74,37 @@ def _flatten_available_solvers(available_solvers: dict[str, Any]) -> dict[str, d
                         continue
                     flat[solver_name] = solver_info
             else:
-                # Caso 2: estructura plana, donde key ya es el solver
                 flat[key] = value
 
     return flat
 
 
-def load_enabled_solvers(registry_path: Path = DEFAULT_REGISTRY_PATH) -> dict[str, dict[str, Any]]:
+def load_enabled_solvers(
+    registry_path: Path = DEFAULT_REGISTRY_PATH,
+) -> dict[str, dict[str, Any]]:
+    """
+    Load the enabled solvers from solver_registry.json.
+    """
     registry = _load_json(registry_path)
 
     enabled_solvers = registry.get("enabled_solvers", [])
     available_solvers = registry.get("available_solvers", {})
 
     if not isinstance(enabled_solvers, list):
-        raise ValueError("'enabled_solvers' debe ser una lista")
+        raise ValueError("'enabled_solvers' must be a list.")
 
     if not isinstance(available_solvers, dict):
-        raise ValueError("'available_solvers' debe ser un diccionario")
+        raise ValueError("'available_solvers' must be a dictionary.")
 
     if not enabled_solvers:
-        raise ValueError("No hay solvers habilitados en 'enabled_solvers'")
+        raise ValueError("No solvers were found in 'enabled_solvers'.")
 
     flat_available = _flatten_available_solvers(available_solvers)
 
     missing = [solver for solver in enabled_solvers if solver not in flat_available]
     if missing:
         raise ValueError(
-            f"Los siguientes solvers de 'enabled_solvers' no existen en "
+            "The following solvers in 'enabled_solvers' do not exist in "
             f"'available_solvers': {missing}"
         )
 
@@ -97,11 +112,14 @@ def load_enabled_solvers(registry_path: Path = DEFAULT_REGISTRY_PATH) -> dict[st
 
 
 def _import_wrapper_class(module_name: str, class_name: str):
+    """
+    Import a wrapper class dynamically.
+    """
     module = importlib.import_module(module_name)
 
     if not hasattr(module, class_name):
         raise AttributeError(
-            f"El módulo '{module_name}' no contiene la clase '{class_name}'"
+            f"Module '{module_name}' does not contain class '{class_name}'."
         )
 
     return getattr(module, class_name)
@@ -109,8 +127,8 @@ def _import_wrapper_class(module_name: str, class_name: str):
 
 def _safe_runtime(result: dict[str, Any]) -> float:
     """
-    Extrae el runtime desde el resultado normalizado del wrapper.
-    Si no existe o no es convertible, retorna NaN.
+    Extract the runtime from a normalized wrapper result.
+    Return NaN if it does not exist or cannot be converted.
     """
     if not isinstance(result, dict):
         return float("nan")
@@ -124,7 +142,30 @@ def _safe_runtime(result: dict[str, Any]) -> float:
 
 
 def _instance_display_name(instance_path: Path) -> str:
+    """
+    Return the display name for an instance.
+    """
     return instance_path.name
+
+
+def _normalize_instance_paths(instance_paths: Iterable[str | Path]) -> list[Path]:
+    """
+    Normalize and validate the instance paths.
+    """
+    normalized_instances: list[Path] = []
+
+    for instance in instance_paths:
+        instance_path = Path(instance).resolve()
+
+        if not instance_path.exists():
+            raise FileNotFoundError(f"Instance file does not exist: {instance_path}")
+
+        if not instance_path.is_file():
+            raise ValueError(f"Instance path is not a file: {instance_path}")
+
+        normalized_instances.append(instance_path)
+
+    return normalized_instances
 
 
 def build_solver_runtime_table(
@@ -133,55 +174,40 @@ def build_solver_runtime_table(
     solver_config_path: str | Path = DEFAULT_SOLVER_CONFIG_PATH,
 ) -> pd.DataFrame:
     """
-    Construye y retorna un DataFrame con forma:
+    Build and return a runtime table with the following structure:
 
-    | Instance | algo_sdpt3 | algo_sedumi |
-    |----------|------------|-------------|
-    | arch0    | 12.53      | 8.91        |
-    | arch2    | 20.11      | 14.77       |
+    | Instance    | algo_sdpt3 | algo_sedumi |
+    |-------------|------------|-------------|
+    | arch0.dat-s | 12.53      | 8.91        |
+    | arch2.dat-s | 20.11      | 14.77       |
 
-    Parámetros
-    ----------
-    instance_paths:
-        Lista iterable de rutas a instancias entregadas por el orquestador mayor.
-    registry_path:
-        Ruta a config/solver_registry.json
-    solver_config_path:
-        Ruta a config/solver_config.json
+    The resulting dataframe is also saved to:
+        ISA metadata/intermediates/solver_runtime_table.csv
 
-    Retorna
-    -------
-    pd.DataFrame
+    The CSV file is overwritten on every run.
     """
     registry_path = Path(registry_path)
     solver_config_path = Path(solver_config_path)
 
     enabled_solver_info = load_enabled_solvers(registry_path)
-
-    normalized_instances: list[Path] = []
-    for instance in instance_paths:
-        instance_path = Path(instance).resolve()
-        if not instance_path.is_file():
-            raise FileNotFoundError(f"No existe la instancia: {instance_path}")
-        normalized_instances.append(instance_path)
+    normalized_instances = _normalize_instance_paths(instance_paths)
 
     if not normalized_instances:
-        return pd.DataFrame(columns=["Instances"])
+        return pd.DataFrame(columns=["Instance"])
 
     wrappers: dict[str, Any] = {}
     rows: list[dict[str, Any]] = []
 
     try:
-        # Instanciar cada wrapper una sola vez.
-        # Esto es importante porque SDPT3 y SeDuMi usan MatlabRunner.
+        # Instantiate each wrapper only once.
         for solver_name, solver_info in enabled_solver_info.items():
             module_name = solver_info.get("wrapper_module")
             class_name = solver_info.get("wrapper_class")
 
             if not module_name or not class_name:
                 raise ValueError(
-                    f"El solver '{solver_name}' debe definir "
-                    f"'wrapper_module' y 'wrapper_class' en solver_registry.json"
+                    f"Solver '{solver_name}' must define "
+                    f"'wrapper_module' and 'wrapper_class' in solver_registry.json."
                 )
 
             wrapper_class = _import_wrapper_class(module_name, class_name)
@@ -190,7 +216,7 @@ def build_solver_runtime_table(
                 project_root=str(PROJECT_ROOT),
             )
 
-        # Ejecutar todas las instancias en todos los solvers.
+        # Run every instance on every enabled solver.
         for instance_path in normalized_instances:
             row: dict[str, Any] = {
                 "Instance": _instance_display_name(instance_path)
@@ -203,7 +229,7 @@ def build_solver_runtime_table(
             rows.append(row)
 
     finally:
-        # Cerrar wrappers si exponen close()
+        # Close wrappers if they expose a close() method.
         for wrapper in wrappers.values():
             close_method = getattr(wrapper, "close", None)
             if callable(close_method):
@@ -214,9 +240,60 @@ def build_solver_runtime_table(
 
     df = pd.DataFrame(rows)
 
-    # Orden de columnas: Instance primero, luego columnas de solver
     solver_columns = [f"algo_{solver_name}" for solver_name in enabled_solver_info.keys()]
     ordered_columns = ["Instance", *solver_columns]
     df = df[ordered_columns]
 
+    save_solver_runtime_table(df, DEFAULT_OUTPUT_PATH)
+
     return df
+
+
+def save_solver_runtime_table(df: pd.DataFrame, output_path: str | Path) -> Path:
+    """
+    Save the solver runtime table to CSV.
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False)
+    return output_path
+
+
+def _run_standalone() -> None:
+    """
+    Run the module as a standalone script.
+    """
+    print("========================================")
+    print("BUILD SOLVER RUNTIME TABLE")
+    print("========================================")
+    print(f"[INFO] Instances directory : {DEFAULT_INSTANCES_DIR}")
+    print(f"[INFO] Registry path       : {DEFAULT_REGISTRY_PATH}")
+    print(f"[INFO] Solver config path  : {DEFAULT_SOLVER_CONFIG_PATH}")
+    print(f"[INFO] Output path         : {DEFAULT_OUTPUT_PATH}")
+
+    instance_paths = sorted(DEFAULT_INSTANCES_DIR.glob("*.dat-s"))
+
+    if not instance_paths:
+        raise FileNotFoundError(
+            f"No .dat-s files were found in: {DEFAULT_INSTANCES_DIR}"
+        )
+
+    df = build_solver_runtime_table(
+        instance_paths=instance_paths,
+        registry_path=DEFAULT_REGISTRY_PATH,
+        solver_config_path=DEFAULT_SOLVER_CONFIG_PATH,
+    )
+
+    print(f"[OK] Solver runtime table saved to: {DEFAULT_OUTPUT_PATH}")
+    print(f"[INFO] Rows: {len(df)}")
+    print(f"[INFO] Columns: {len(df.columns)}")
+
+    print("\n[INFO] Preview:")
+    print(df.head())
+
+
+if __name__ == "__main__":
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+
+    _run_standalone()
