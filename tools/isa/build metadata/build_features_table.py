@@ -11,7 +11,7 @@ import pandas as pd
 
 FeatureExtractor = Callable[[str | Path], dict[str, Any]]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT / "ISA metadata" / "intermediates" / "features_table.csv"
 )

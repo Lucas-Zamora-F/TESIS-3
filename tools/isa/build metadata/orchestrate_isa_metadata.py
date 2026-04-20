@@ -11,10 +11,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from main.build_features_table import build_features_table
-from main.build_solver_runtime_table import build_solver_runtime_table
-from main.build_source_table import build_source_table
-from main.build_isa_metadata_table import build_isa_metadata_table
+from tools.isa.build_metadata.build_features_table import build_features_table
+from tools.isa.build_metadata.build_solver_runtime_table import build_solver_runtime_table
+from tools.isa.build_metadata.build_source_table import build_source_table
+from tools.isa.build_metadata.build_isa_metadata_table import build_isa_metadata_table
 from tools.logging.universal_logger import (
     setup_universal_logger,
     log_event,

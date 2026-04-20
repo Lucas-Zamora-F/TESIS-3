@@ -9,7 +9,7 @@ from typing import Any, Iterable
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_REGISTRY_PATH = PROJECT_ROOT / "config" / "solver_registry.json"
 DEFAULT_SOLVER_CONFIG_PATH = PROJECT_ROOT / "config" / "solver_config.json"
 DEFAULT_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "sdplib"
