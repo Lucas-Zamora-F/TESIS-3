@@ -69,6 +69,7 @@ class HomePage(QWidget):
     open_parameters = Signal()
     open_metadata = Signal()
     open_build = Signal()
+    open_explore = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -192,10 +193,19 @@ class HomePage(QWidget):
         )
         build_button.clicked.connect(self.open_build.emit)
 
+        explore_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/explore_icon.png",
+            tooltip_text="Explore",
+            icon_size=24,
+            button_size=48,
+        )
+        explore_button.clicked.connect(self.open_explore.emit)
+
         left_sidebar_layout.addWidget(home_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(parameters_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        left_sidebar_layout.addWidget(explore_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addStretch()
         left_sidebar_layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
 

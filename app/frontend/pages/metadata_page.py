@@ -83,6 +83,7 @@ class MetadataPage(QWidget):
     open_parameters = Signal()
     open_metadata = Signal()
     open_build = Signal()
+    open_explore = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -190,6 +191,14 @@ class MetadataPage(QWidget):
         )
         build_button.clicked.connect(self.open_build.emit)
 
+        explore_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/explore_icon.png",
+            tooltip_text="Explore",
+            icon_size=24,
+            button_size=48,
+        )
+        explore_button.clicked.connect(self.open_explore.emit)
+
         settings_button = SidebarButton(
             icon_relative_path="app/frontend/assets/icons/settings_icon.png",
             tooltip_text="Configuration",
@@ -202,6 +211,7 @@ class MetadataPage(QWidget):
         layout.addWidget(parameters_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(explore_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
         layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
 

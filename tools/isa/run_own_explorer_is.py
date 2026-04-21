@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -30,60 +29,32 @@ def _to_matlab_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "/")
 
 
-def _extract_build_timestamp(build_dir_name: str) -> str:
-    """
-    Accept:
-        run_build_YYYYMMDD_HHMMSS
-        run_build_YYYYMMDD_HHMMSS_v2
-        run_build_YYYYMMDD_HHMMSS_v3
-        ...
-    Return:
-        YYYYMMDD_HHMMSS
-    """
-    match = re.fullmatch(r"run_build_(\d{8}_\d{6})(?:_v\d+)?", build_dir_name)
-    if match is None:
-        raise ValueError(f"Invalid build run directory name format: {build_dir_name}")
-    return match.group(1)
-
-
 def _find_latest_build_run(build_base: Path) -> Path:
     if not build_base.exists():
         raise FileNotFoundError(f"Build output folder not found: {build_base}")
 
-    run_dirs = [
-        p for p in build_base.iterdir()
-        if p.is_dir() and p.name.startswith("run_build_")
-    ]
+    if not (build_base / "model.mat").exists():
+        raise FileNotFoundError(f"model.mat not found in build output folder: {build_base}")
 
-    if not run_dirs:
-        raise FileNotFoundError(f"No build run directories were found in: {build_base}")
-
-    return max(run_dirs, key=lambda p: p.stat().st_mtime)
+    return build_base
 
 
-def _build_explore_run_dir(explore_base: Path, timestamp: str) -> Path:
+def _build_explore_run_dir(explore_base: Path, timestamp: str | None = None) -> Path:
     """
-    Naming rule:
-        run_explore_YYYYMMDD_HHMMSS
-        run_explore_YYYYMMDD_HHMMSS_v2
-        run_explore_YYYYMMDD_HHMMSS_v3
-        ...
+    Clean matilda_out/explore and use it as the output directory.
     """
+    resolved_output = explore_base.resolve()
+    resolved_expected_parent = (PROJECT_ROOT / "matilda_out").resolve()
+    if resolved_output.parent != resolved_expected_parent or resolved_output.name != "explore":
+        raise ValueError(f"Refusing to clean unexpected explore output directory: {resolved_output}")
+
     explore_base.mkdir(parents=True, exist_ok=True)
-
-    base_name = f"run_explore_{timestamp}"
-    candidate = explore_base / base_name
-    if not candidate.exists():
-        candidate.mkdir(parents=True, exist_ok=False)
-        return candidate
-
-    version = 2
-    while True:
-        candidate = explore_base / f"{base_name}_v{version}"
-        if not candidate.exists():
-            candidate.mkdir(parents=True, exist_ok=False)
-            return candidate
-        version += 1
+    for child in explore_base.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+    return explore_base
 
 
 def _copy_if_exists(src: Path, dst: Path) -> bool:
@@ -174,8 +145,7 @@ def run_own_explore_is(
             f"Custom explore path does not exist: {custom_explore_path}"
         )
 
-    timestamp = _extract_build_timestamp(build_run_dir.name)
-    explore_run_dir = _build_explore_run_dir(explore_base, timestamp)
+    explore_run_dir = _build_explore_run_dir(explore_base)
     print(f"[INFO] Explore run directory: {explore_run_dir}")
 
     _prepare_explore_inputs(build_run_dir, explore_run_dir)

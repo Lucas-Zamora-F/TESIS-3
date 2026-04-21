@@ -17,6 +17,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
 from app.frontend.pages.build_page import BuildPage
 from app.frontend.pages.configuration_page import ConfigurationPage
+from app.frontend.pages.explore_page import ExplorePage
 from app.frontend.pages.home_page import HomePage
 from app.frontend.pages.metadata_page import MetadataPage
 from app.frontend.pages.parameters_page import ParametersPage
@@ -47,12 +48,14 @@ class MainWindow(QMainWindow):
         self.parameters_page = ParametersPage()
         self.metadata_page = MetadataPage()
         self.build_page = BuildPage()
+        self.explore_page = ExplorePage()
 
         self.stack.addWidget(self.home_page)           # index 0
         self.stack.addWidget(self.configuration_page)  # index 1
         self.stack.addWidget(self.parameters_page)     # index 2
         self.stack.addWidget(self.metadata_page)       # index 3
         self.stack.addWidget(self.build_page)          # index 4
+        self.stack.addWidget(self.explore_page)        # index 5
 
         self.setCentralWidget(self.stack)
 
@@ -64,6 +67,7 @@ class MainWindow(QMainWindow):
         self.home_page.open_parameters.connect(self.show_parameters)
         self.home_page.open_metadata.connect(self.show_metadata)
         self.home_page.open_build.connect(self.show_build)
+        self.home_page.open_explore.connect(self.show_explore)
 
         # ============================================================
         # CONFIGURATION PAGE SIGNALS
@@ -73,6 +77,7 @@ class MainWindow(QMainWindow):
         self.configuration_page.open_parameters.connect(self.show_parameters)
         self.configuration_page.open_metadata.connect(self.show_metadata)
         self.configuration_page.open_build.connect(self.show_build)
+        self.configuration_page.open_explore.connect(self.show_explore)
 
         # ============================================================
         # PARAMETERS PAGE SIGNALS
@@ -82,6 +87,7 @@ class MainWindow(QMainWindow):
         self.parameters_page.open_parameters.connect(self.show_parameters)
         self.parameters_page.open_metadata.connect(self.show_metadata)
         self.parameters_page.open_build.connect(self.show_build)
+        self.parameters_page.open_explore.connect(self.show_explore)
 
         # ============================================================
         # METADATA PAGE SIGNALS
@@ -91,6 +97,7 @@ class MainWindow(QMainWindow):
         self.metadata_page.open_parameters.connect(self.show_parameters)
         self.metadata_page.open_metadata.connect(self.show_metadata)
         self.metadata_page.open_build.connect(self.show_build)
+        self.metadata_page.open_explore.connect(self.show_explore)
 
         # ============================================================
         # BUILD PAGE SIGNALS
@@ -100,6 +107,17 @@ class MainWindow(QMainWindow):
         self.build_page.open_parameters.connect(self.show_parameters)
         self.build_page.open_metadata.connect(self.show_metadata)
         self.build_page.open_build.connect(self.show_build)
+        self.build_page.open_explore.connect(self.show_explore)
+
+        # ============================================================
+        # EXPLORE PAGE SIGNALS
+        # ============================================================
+        self.explore_page.open_home.connect(self.show_home)
+        self.explore_page.open_configuration.connect(self.show_configuration)
+        self.explore_page.open_parameters.connect(self.show_parameters)
+        self.explore_page.open_metadata.connect(self.show_metadata)
+        self.explore_page.open_build.connect(self.show_build)
+        self.explore_page.open_explore.connect(self.show_explore)
 
     def show_home(self) -> None:
         self.stack.setCurrentWidget(self.home_page)
@@ -115,6 +133,9 @@ class MainWindow(QMainWindow):
 
     def show_build(self) -> None:
         self.stack.setCurrentWidget(self.build_page)
+
+    def show_explore(self) -> None:
+        self.stack.setCurrentWidget(self.explore_page)
 
 
 def main() -> None:

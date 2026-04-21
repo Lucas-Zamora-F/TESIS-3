@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -39,38 +40,28 @@ def _to_matlab_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "/")
 
 
-def _timestamp() -> str:
+def _prepare_clean_output_dir(output_base: Path) -> Path:
     """
-    Return a timestamp string for naming run directories.
+    Clean matilda_out/build and use it as the build output directory.
     """
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
+    resolved_output = output_base.resolve()
+    resolved_expected_parent = (PROJECT_ROOT / "matilda_out").resolve()
 
+    if resolved_output.parent != resolved_expected_parent or resolved_output.name != "build":
+        raise ValueError(
+            "Refusing to clean an unexpected build output directory: "
+            f"{resolved_output}"
+        )
 
-def _create_run_dir(output_base: Path) -> Path:
-    """
-    Create a new unique run directory under the output base folder.
-
-    Examples
-    --------
-    matilda_out/build/run_build_20260421_121500
-    matilda_out/build/run_build_20260421_121500_v2
-    """
     output_base.mkdir(parents=True, exist_ok=True)
 
-    base_name = f"run_build_{_timestamp()}"
-    run_dir = output_base / base_name
+    for child in output_base.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
 
-    if not run_dir.exists():
-        run_dir.mkdir(parents=True, exist_ok=False)
-        return run_dir
-
-    version = 2
-    while True:
-        candidate = output_base / f"{base_name}_v{version}"
-        if not candidate.exists():
-            candidate.mkdir(parents=True, exist_ok=False)
-            return candidate
-        version += 1
+    return output_base
 
 
 def _normalize_instances_column(df: pd.DataFrame) -> pd.DataFrame:
@@ -435,14 +426,14 @@ def run_build_is(
     instance_space_path : Path | None
         Path to extern/InstanceSpace.
     output_base : Path | None
-        Base directory where run_build_<timestamp> will be created.
+        Directory where build outputs will be written directly.
     config_path : Path | None
         Path to config/instance_space_config.json.
 
     Returns
     -------
     Path
-        Generated run directory path.
+        Build output directory path.
     """
     metadata_path = Path(metadata_path) if metadata_path else DEFAULT_METADATA_PATH
     instance_space_path = (
@@ -462,9 +453,9 @@ def run_build_is(
 
     _validate_instance_space_path(instance_space_path)
 
-    print("\n[INFO] Creating run directory...")
-    run_dir = _create_run_dir(output_base)
-    print(f"[OK] Run directory created: {run_dir}")
+    print("\n[INFO] Cleaning build output directory...")
+    run_dir = _prepare_clean_output_dir(output_base)
+    print(f"[OK] Build output directory ready: {run_dir}")
 
     print("\n[INFO] Preparing metadata...")
     _prepare_metadata(metadata_path, run_dir)

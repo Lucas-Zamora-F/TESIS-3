@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import argparse
 import json
-import re
 import shutil
 from pathlib import Path
 from typing import Optional
 
 import matlab.engine
+
+from analyze_explore_empty_space import find_empty_space_centers
 
 
 # ======================================================================================
@@ -30,72 +32,48 @@ def _to_matlab_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "/")
 
 
-def _extract_build_timestamp(build_run_name: str) -> str:
+def _find_build_output_dir(build_base: Path) -> Path:
     """
-    Extract the timestamp from a build run folder name.
-
-    Expected formats:
-        run_build_YYYYMMDD_HHMMSS
-        run_build_YYYYMMDD_HHMMSS_v2
-        run_build_YYYYMMDD_HHMMSS_v3
-        ...
-
-    Returns
-    -------
-    str
-        The extracted timestamp: YYYYMMDD_HHMMSS
-    """
-    match = re.match(r"^run_build_(\d{8}_\d{6})(?:_v\d+)?$", build_run_name)
-    if not match:
-        raise ValueError(
-            f"Could not extract timestamp from build run folder name: {build_run_name}"
-        )
-    return match.group(1)
-
-
-def _find_latest_build_run(build_base: Path) -> Path:
-    """
-    Find the most recent build run directory.
+    Return the current build output directory.
     """
     if not build_base.exists():
         raise FileNotFoundError(f"Build base directory not found: {build_base}")
 
-    candidates = [
-        p
-        for p in build_base.iterdir()
-        if p.is_dir() and re.match(r"^run_build_\d{8}_\d{6}(?:_v\d+)?$", p.name)
-    ]
+    if not (build_base / "model.mat").exists():
+        raise FileNotFoundError(f"model.mat not found in build output directory: {build_base}")
 
-    if not candidates:
-        raise FileNotFoundError(f"No build run directories found in: {build_base}")
-
-    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return candidates[0]
+    return build_base
 
 
-def _build_explore_run_dir(explore_base: Path, timestamp: str) -> Path:
+def _prepare_clean_explore_dir(explore_base: Path) -> Path:
     """
-    Create a new explore run directory using the build timestamp.
+    Clean matilda_out/explore and use it as the explore output directory.
     """
+    resolved_output = explore_base.resolve()
+    resolved_expected_parent = (PROJECT_ROOT / "matilda_out").resolve()
+
+    if resolved_output.parent != resolved_expected_parent or resolved_output.name != "explore":
+        raise ValueError(
+            "Refusing to clean an unexpected explore output directory: "
+            f"{resolved_output}"
+        )
+
     explore_base.mkdir(parents=True, exist_ok=True)
 
-    base_name = f"run_explore_{timestamp}"
-    candidate = explore_base / base_name
+    for child in explore_base.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
 
-    if not candidate.exists():
-        candidate.mkdir(parents=True, exist_ok=False)
-        return candidate
-
-    version = 2
-    while True:
-        candidate = explore_base / f"{base_name}_v{version}"
-        if not candidate.exists():
-            candidate.mkdir(parents=True, exist_ok=False)
-            return candidate
-        version += 1
+    return explore_base
 
 
-def _prepare_explore_inputs(build_run_dir: Path, explore_run_dir: Path) -> None:
+def _prepare_explore_inputs(
+    build_run_dir: Path,
+    explore_run_dir: Path,
+    metadata_test_path: Optional[Path] = None,
+) -> None:
     """
     Prepare the input files required by exploreIS.
 
@@ -103,19 +81,22 @@ def _prepare_explore_inputs(build_run_dir: Path, explore_run_dir: Path) -> None:
     - model.mat
     - metadata_test.csv
 
-    Source files taken from the selected build run:
+    Source files taken from the selected build run by default:
     - model.mat
     - metadata.csv -> renamed to metadata_test.csv
+
+    If metadata_test_path is provided, that file is copied as metadata_test.csv
+    instead of the build metadata.csv.
     """
     src_model = build_run_dir / "model.mat"
-    src_metadata = build_run_dir / "metadata.csv"
+    src_metadata = Path(metadata_test_path) if metadata_test_path else build_run_dir / "metadata.csv"
     src_options = build_run_dir / "options.json"
 
     if not src_model.exists():
         raise FileNotFoundError(f"model.mat not found in build run: {src_model}")
 
     if not src_metadata.exists():
-        raise FileNotFoundError(f"metadata.csv not found in build run: {src_metadata}")
+        raise FileNotFoundError(f"metadata test CSV not found: {src_metadata}")
 
     dst_model = explore_run_dir / "model.mat"
     dst_metadata_test = explore_run_dir / "metadata_test.csv"
@@ -124,7 +105,7 @@ def _prepare_explore_inputs(build_run_dir: Path, explore_run_dir: Path) -> None:
     shutil.copy2(src_metadata, dst_metadata_test)
 
     print(f"[OK] Copied model.mat       -> {dst_model}")
-    print(f"[OK] Copied metadata.csv   -> {dst_metadata_test} (as metadata_test.csv)")
+    print(f"[OK] Copied metadata test   -> {dst_metadata_test}")
 
     # Not required by exploreIS itself, but useful for reproducibility/debugging
     if src_options.exists():
@@ -133,7 +114,11 @@ def _prepare_explore_inputs(build_run_dir: Path, explore_run_dir: Path) -> None:
         print(f"[OK] Copied options.json   -> {dst_options}")
 
 
-def _write_explore_manifest(build_run_dir: Path, explore_run_dir: Path) -> None:
+def _write_explore_manifest(
+    build_run_dir: Path,
+    explore_run_dir: Path,
+    metadata_test_path: Optional[Path] = None,
+) -> None:
     """
     Write a minimal manifest JSON for debugging/reproducibility.
     """
@@ -141,6 +126,11 @@ def _write_explore_manifest(build_run_dir: Path, explore_run_dir: Path) -> None:
         "project_root": str(PROJECT_ROOT.resolve()),
         "build_run_dir": str(build_run_dir.resolve()),
         "explore_run_dir": str(explore_run_dir.resolve()),
+        "metadata_test_source": (
+            str(Path(metadata_test_path).resolve())
+            if metadata_test_path
+            else str((build_run_dir / "metadata.csv").resolve())
+        ),
         "copied_model": str((explore_run_dir / "model.mat").resolve()),
         "copied_metadata_test": str((explore_run_dir / "metadata_test.csv").resolve()),
     }
@@ -283,22 +273,27 @@ def _patch_model_mat_for_explore(
 
 def run_explore_is(
     build_run_dir: Optional[Path] = None,
+    metadata_test_path: Optional[Path] = None,
     instance_space_path: Optional[Path] = None,
     build_base: Optional[Path] = None,
     explore_base: Optional[Path] = None,
+    analyze_empty_space: bool = True,
+    empty_space_top_k: int = 10,
+    empty_space_grid_size: int = 80,
 ) -> Path:
     """
-    Run InstanceSpace exploreIS using the latest build run by default.
+    Run InstanceSpace exploreIS using the current build output by default.
 
     Steps
     -----
-    1. Locate the latest build run in matilda_out/build (unless one is provided).
-    2. Create a new explore run directory in matilda_out/explore with the same timestamp.
+    1. Use matilda_out/build as the build output directory unless one is provided.
+    2. Clean matilda_out/explore and write outputs directly there.
     3. Copy:
         - model.mat
-        - metadata.csv -> metadata_test.csv
+        - metadata_test_path -> metadata_test.csv, or metadata.csv -> metadata_test.csv
     4. Patch the copied model.mat for current exploreIS compatibility.
     5. Run exploreIS(rootdir).
+    6. Optionally save empty-space target coordinates for future generation.
 
     Returns
     -------
@@ -314,7 +309,7 @@ def run_explore_is(
     if build_run_dir is not None:
         build_run_dir = Path(build_run_dir)
     else:
-        build_run_dir = _find_latest_build_run(build_base)
+        build_run_dir = _find_build_output_dir(build_base)
 
     if not build_run_dir.exists():
         raise FileNotFoundError(f"Build run directory not found: {build_run_dir}")
@@ -328,8 +323,7 @@ def run_explore_is(
     if not exploreis_path.exists():
         raise FileNotFoundError(f"exploreIS.m not found at: {exploreis_path}")
 
-    timestamp = _extract_build_timestamp(build_run_dir.name)
-    explore_run_dir = _build_explore_run_dir(explore_base, timestamp)
+    explore_run_dir = _prepare_clean_explore_dir(explore_base)
 
     print("=" * 80)
     print("RUN EXPLOREIS / INSTANCE SPACE")
@@ -338,12 +332,13 @@ def run_explore_is(
     print(f"[INFO] InstanceSpace path   : {instance_space_path}")
     print(f"[INFO] Build base           : {build_base}")
     print(f"[INFO] Selected build run   : {build_run_dir}")
+    print(f"[INFO] Metadata test source : {metadata_test_path or build_run_dir / 'metadata.csv'}")
     print(f"[INFO] Explore base         : {explore_base}")
     print(f"[INFO] Explore run dir      : {explore_run_dir}")
 
     print("\n[INFO] Preparing exploreIS input files...")
-    _prepare_explore_inputs(build_run_dir, explore_run_dir)
-    _write_explore_manifest(build_run_dir, explore_run_dir)
+    _prepare_explore_inputs(build_run_dir, explore_run_dir, metadata_test_path)
+    _write_explore_manifest(build_run_dir, explore_run_dir, metadata_test_path)
 
     eng = None
     try:
@@ -368,6 +363,14 @@ def run_explore_is(
         print("[OK] exploreIS finished successfully")
         print(f"[OK] Outputs saved in: {explore_run_dir}")
 
+        if analyze_empty_space:
+            print("[INFO] Detecting empty-space target coordinates...")
+            find_empty_space_centers(
+                explore_run_dir=explore_run_dir,
+                grid_size=empty_space_grid_size,
+                top_k=empty_space_top_k,
+            )
+
     except Exception:
         print(f"[ERROR] exploreIS failed. Partial outputs may exist in: {explore_run_dir}")
         raise
@@ -385,11 +388,73 @@ def run_explore_is(
 # STANDALONE ENTRY POINT
 # ======================================================================================
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run InstanceSpace exploreIS using a build model and metadata_test.csv."
+    )
+    parser.add_argument(
+        "--build-run-dir",
+        type=Path,
+        help="Specific build output directory. Defaults to matilda_out/build.",
+    )
+    parser.add_argument(
+        "--metadata-test-path",
+        type=Path,
+        help="CSV to copy as metadata_test.csv. Defaults to selected build metadata.csv.",
+    )
+    parser.add_argument(
+        "--instance-space-path",
+        type=Path,
+        default=DEFAULT_INSTANCE_SPACE_PATH,
+        help="Path to the InstanceSpace MATLAB folder.",
+    )
+    parser.add_argument(
+        "--build-base",
+        type=Path,
+        default=DEFAULT_BUILD_BASE,
+        help="Current build output folder.",
+    )
+    parser.add_argument(
+        "--explore-base",
+        type=Path,
+        default=DEFAULT_EXPLORE_BASE,
+        help="Current explore output folder.",
+    )
+    parser.add_argument(
+        "--skip-empty-space-analysis",
+        action="store_true",
+        help="Do not generate empty_space_targets.csv/json after exploreIS.",
+    )
+    parser.add_argument(
+        "--empty-space-top-k",
+        type=int,
+        default=10,
+        help="Number of empty-space centers to save after exploreIS.",
+    )
+    parser.add_argument(
+        "--empty-space-grid-size",
+        type=int,
+        default=80,
+        help="Grid resolution per axis for empty-space detection.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
     """
     Standalone entry point.
     """
-    run_dir = run_explore_is()
+    args = _parse_args()
+    run_dir = run_explore_is(
+        build_run_dir=args.build_run_dir,
+        metadata_test_path=args.metadata_test_path,
+        instance_space_path=args.instance_space_path,
+        build_base=args.build_base,
+        explore_base=args.explore_base,
+        analyze_empty_space=not args.skip_empty_space_analysis,
+        empty_space_top_k=args.empty_space_top_k,
+        empty_space_grid_size=args.empty_space_grid_size,
+    )
 
     print("\n" + "=" * 80)
     print("EXPLOREIS FINISHED")

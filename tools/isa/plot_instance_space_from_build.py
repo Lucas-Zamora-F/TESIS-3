@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-RUN_DIR = Path(r"matilda_out\build\run_build_20260421_123714")
+RUN_DIR = Path(r"matilda_out\build")
 
 
 def main() -> None:

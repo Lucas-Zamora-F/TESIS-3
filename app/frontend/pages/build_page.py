@@ -85,6 +85,7 @@ class BuildPage(QWidget):
     open_parameters = Signal()
     open_metadata = Signal()
     open_build = Signal()
+    open_explore = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -189,6 +190,14 @@ class BuildPage(QWidget):
         build_button.set_active(True)
         build_button.clicked.connect(self.open_build.emit)
 
+        explore_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/explore_icon.png",
+            tooltip_text="Explore",
+            icon_size=24,
+            button_size=48,
+        )
+        explore_button.clicked.connect(self.open_explore.emit)
+
         settings_button = SidebarButton(
             icon_relative_path="app/frontend/assets/icons/settings_icon.png",
             tooltip_text="Configuration",
@@ -201,6 +210,7 @@ class BuildPage(QWidget):
         layout.addWidget(parameters_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(explore_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
         layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -418,7 +428,7 @@ class BuildPage(QWidget):
     def _build_explorer_page(self) -> QWidget:
         page, layout = self._build_page_container(
             "Build Explorer",
-            "Select a run folder inside matilda_out/build and browse CSV and PNG files separately.",
+            "Browse the current files in matilda_out/build.",
         )
 
         top_row = QHBoxLayout()
@@ -463,7 +473,7 @@ class BuildPage(QWidget):
         run_selector_row = QHBoxLayout()
         run_selector_row.setSpacing(10)
 
-        run_selector_label = QLabel("Run folder")
+        run_selector_label = QLabel("Output folder")
         run_selector_label.setStyleSheet("""
             color: #f3f3f3;
             font-size: 13px;
@@ -818,20 +828,18 @@ class BuildPage(QWidget):
             self.run_folder_combo.blockSignals(False)
             return
 
-        run_folders = [p for p in self.build_output_dir.iterdir() if p.is_dir()]
-        run_folders = sorted(run_folders, reverse=True)
-
-        if not run_folders:
-            self.explorer_status_label.setText("Status: no run folders found")
+        files = [p for p in self.build_output_dir.rglob("*") if p.is_file()]
+        if not files:
+            self.explorer_status_label.setText("Status: no build outputs found")
             self.run_folder_combo.blockSignals(False)
             return
 
-        for folder in run_folders:
-            self.run_folder_combo.addItem(folder.name, folder)
+        self.run_folder_combo.addItem(
+            self._to_relative_path(self.build_output_dir),
+            self.build_output_dir,
+        )
 
         self.run_folder_combo.blockSignals(False)
-
-        # seleccionar automáticamente el más reciente
         self.run_folder_combo.setCurrentIndex(0)
         self.on_run_folder_changed()
 
