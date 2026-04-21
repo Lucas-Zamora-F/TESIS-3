@@ -7,15 +7,16 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QDoubleSpinBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
-    QDoubleSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -28,108 +29,153 @@ class InstanceSpaceEditor(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
+        self.inputs: dict[str, Any] = {}
+
         self.setStyleSheet("""
             QWidget {
                 background-color: #2f2f2f;
-                color: #f3f3f3;
             }
             QLabel {
-                font-size: 13px;
+                color: #d4d4d4;
+                background: transparent;
+            }
+            QPushButton {
+                background-color: #252526;
+                color: #f3f3f3;
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                padding: 10px 14px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #2d2d30;
+            }
+            QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+                background-color: #1e1e1e;
+                color: #f3f3f3;
+                border: 1px solid #4a4a4a;
+                border-radius: 6px;
+                padding: 6px 8px;
+                min-height: 30px;
             }
         """)
 
-        self.inputs: dict[str, Any] = {}
+        root_layout = QVBoxLayout()
+        root_layout.setContentsMargins(28, 24, 28, 24)
+        root_layout.setSpacing(16)
 
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        title = QLabel("Instance Spaces")
+        title.setStyleSheet("""
+            font-size: 28px;
+            font-weight: 800;
+            color: #f3f3f3;
+        """)
 
-        title = QLabel("Instance Space Configuration")
-        title.setStyleSheet("font-size: 22px; font-weight: 800;")
-        main_layout.addWidget(title)
+        controls_layout = QHBoxLayout()
+        controls_layout.setSpacing(10)
+
+        self.reload_button = QPushButton("Reload")
+        self.save_button = QPushButton("Save")
+
+        self.reload_button.clicked.connect(self.load_config)
+        self.save_button.clicked.connect(self.save_config)
+
+        controls_layout.addWidget(self.reload_button)
+        controls_layout.addWidget(self.save_button)
+        controls_layout.addStretch()
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-
-        self.container = QWidget()
-        self.container_layout = QVBoxLayout()
-        self.container_layout.setSpacing(16)
-
-        self.container.setLayout(self.container_layout)
-        self.scroll.setWidget(self.container)
-
-        main_layout.addWidget(self.scroll)
-
-        # botón guardar
-        btn_layout = QHBoxLayout()
-        self.save_button = QPushButton("Guardar Configuración")
-        self.save_button.clicked.connect(self.save_config)
-
-        btn_layout.addWidget(self.save_button)
-        btn_layout.addStretch()
-
-        main_layout.addLayout(btn_layout)
-
-        self.setLayout(main_layout)
-
-        self.load_config()
-
-    # =========================================================
-    # LOAD
-    # =========================================================
-    def load_config(self):
-        if not CONFIG_PATH.exists():
-            return
-
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            config = json.load(f)
-
-        build = config.get("build_is_options", {})
-
-        for section, values in build.items():
-            self.add_section(section, values)
-
-    # =========================================================
-    # UI BUILD
-    # =========================================================
-    def add_section(self, section_name: str, values: dict):
-        section_frame = QFrame()
-        section_frame.setStyleSheet("""
-            QFrame {
-                background-color: #252526;
-                border-radius: 10px;
-                padding: 10px;
+        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: #2f2f2f;
             }
         """)
 
+        self.container = QWidget()
+        self.container.setStyleSheet("background-color: #2f2f2f;")
+        self.container_layout = QVBoxLayout()
+        self.container_layout.setContentsMargins(0, 0, 0, 0)
+        self.container_layout.setSpacing(16)
+        self.container.setLayout(self.container_layout)
+        self.scroll.setWidget(self.container)
+
+        root_layout.addWidget(title)
+        root_layout.addLayout(controls_layout)
+        root_layout.addWidget(self.scroll, 1)
+
+        self.setLayout(root_layout)
+
+        self.load_config()
+
+    def load_config(self) -> None:
+        # Clear existing widgets
+        while self.container_layout.count():
+            item = self.container_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        self.inputs.clear()
+
+        if not CONFIG_PATH.exists():
+            return
+
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                config = json.load(f)
+
+            build = config.get("build_is_options", {})
+            for section, values in build.items():
+                self._add_section(section, values)
+
+            self.container_layout.addStretch()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to load instance_space_config.json:\n{e}")
+
+    def _add_section(self, section_name: str, values: dict) -> None:
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
 
         title = QLabel(section_name)
-        title.setStyleSheet("font-size: 16px; font-weight: 700;")
+        title.setStyleSheet("""
+            color: #f3f3f3;
+            font-size: 15px;
+            font-weight: 700;
+        """)
+
+        separator = QFrame()
+        separator.setFixedHeight(1)
+        separator.setStyleSheet("background-color: #3a3a3a;")
+
         layout.addWidget(title)
+        layout.addWidget(separator)
 
         grid = QGridLayout()
-        grid.setSpacing(10)
+        grid.setHorizontalSpacing(18)
+        grid.setVerticalSpacing(10)
+        grid.setColumnStretch(0, 0)
+        grid.setColumnStretch(1, 1)
 
         row = 0
         for key, value in values.items():
-            label = QLabel(key)
-
-            widget = self.create_input_widget(section_name, key, value)
-
+            label = QLabel(key.replace("_", " ").capitalize())
+            widget = self._create_input_widget(section_name, key, value)
             grid.addWidget(label, row, 0)
             grid.addWidget(widget, row, 1)
-
             row += 1
 
         layout.addLayout(grid)
-        section_frame.setLayout(layout)
 
-        self.container_layout.addWidget(section_frame)
+        wrapper = QWidget()
+        wrapper.setLayout(layout)
+        self.container_layout.addWidget(wrapper)
 
-    # =========================================================
-    # INPUT FACTORY
-    # =========================================================
-    def create_input_widget(self, section: str, key: str, value: Any):
+    def _create_input_widget(self, section: str, key: str, value: Any) -> QWidget:
         full_key = f"{section}.{key}"
 
         if isinstance(value, bool):
@@ -154,47 +200,38 @@ class InstanceSpaceEditor(QWidget):
             self.inputs[full_key] = spin
             return spin
 
-        # string
         line = QLineEdit(str(value))
         self.inputs[full_key] = line
         return line
 
-    # =========================================================
-    # SAVE
-    # =========================================================
-    def save_config(self):
+    def save_config(self) -> None:
         if not CONFIG_PATH.exists():
             return
 
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            config = json.load(f)
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                config = json.load(f)
 
-        build = config.get("build_is_options", {})
+            build = config.get("build_is_options", {})
+            for section, values in build.items():
+                for key in values.keys():
+                    full_key = f"{section}.{key}"
+                    widget = self.inputs.get(full_key)
+                    if widget is None:
+                        continue
+                    if isinstance(widget, QComboBox):
+                        config["build_is_options"][section][key] = widget.currentText() == "True"
+                    elif isinstance(widget, QSpinBox):
+                        config["build_is_options"][section][key] = widget.value()
+                    elif isinstance(widget, QDoubleSpinBox):
+                        config["build_is_options"][section][key] = widget.value()
+                    elif isinstance(widget, QLineEdit):
+                        config["build_is_options"][section][key] = widget.text()
 
-        for section, values in build.items():
-            for key in values.keys():
-                full_key = f"{section}.{key}"
-                widget = self.inputs.get(full_key)
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
 
-                if widget is None:
-                    continue
+            QMessageBox.information(self, "Saved", "instance_space_config.json was updated successfully.")
 
-                if isinstance(widget, QComboBox):
-                    val = widget.currentText() == "True"
-
-                elif isinstance(widget, QSpinBox):
-                    val = widget.value()
-
-                elif isinstance(widget, QDoubleSpinBox):
-                    val = widget.value()
-
-                elif isinstance(widget, QLineEdit):
-                    val = widget.text()
-
-                else:
-                    continue
-
-                config["build_is_options"][section][key] = val
-
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save instance_space_config.json:\n{e}")

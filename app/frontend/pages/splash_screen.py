@@ -2,14 +2,11 @@ import os
 import sys
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtGui import QColor, QPixmap, QPainter, QBrush
 from PySide6.QtWidgets import QSplashScreen
 
 
 def get_resource_path(relative_path: str) -> str:
-    """
-    Devuelve la ruta correcta tanto en desarrollo como en PyInstaller.
-    """
     if hasattr(sys, "_MEIPASS"):
         base_path = sys._MEIPASS
     else:
@@ -25,21 +22,26 @@ class SplashScreen(QSplashScreen):
     def __init__(self) -> None:
         logo_path = get_resource_path("app/frontend/assets/sdisg_logo.png")
 
-        pixmap = QPixmap(logo_path)
+        # Crear canvas con fondo sólido
+        canvas = QPixmap(700, 400)
+        canvas.fill(QColor("#0f172a"))
 
-        # Si falla la carga del logo
-        if pixmap.isNull():
-            pixmap = QPixmap(700, 400)
-            pixmap.fill(QColor("#0f172a"))
-        else:
-            pixmap = pixmap.scaled(
-                700,
-                400,
+        logo = QPixmap(logo_path)
+        if not logo.isNull():
+            logo = logo.scaled(
+                500,
+                300,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
+            # Centrar el logo sobre el fondo
+            painter = QPainter(canvas)
+            x = (700 - logo.width()) // 2
+            y = (400 - logo.height()) // 2
+            painter.drawPixmap(x, y, logo)
+            painter.end()
 
-        super().__init__(pixmap)
+        super().__init__(canvas)
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
 
@@ -50,9 +52,6 @@ class SplashScreen(QSplashScreen):
         )
 
     def set_message(self, message: str) -> None:
-        """
-        Permite actualizar el mensaje dinámicamente.
-        """
         self.showMessage(
             message,
             Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,

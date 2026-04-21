@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
+    QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -50,13 +51,11 @@ class SolversEditor(QWidget):
                 background-color: #2f2f2f;
                 color: #f3f3f3;
             }
-
             QLabel {
                 background: transparent;
                 color: #f3f3f3;
                 font-size: 13px;
             }
-
             QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
                 background-color: #1e1e1e;
                 color: #f3f3f3;
@@ -65,20 +64,17 @@ class SolversEditor(QWidget):
                 padding: 6px 8px;
                 min-height: 30px;
             }
-
             QPushButton {
-                background-color: #2d2d30;
+                background-color: #252526;
                 color: #f3f3f3;
-                border: 1px solid #4a4a4a;
+                border: 1px solid #3a3a3a;
                 border-radius: 8px;
-                padding: 8px 14px;
-                font-weight: 700;
+                padding: 10px 14px;
+                font-weight: 600;
             }
-
             QPushButton:hover {
-                background-color: #37373c;
+                background-color: #2d2d30;
             }
-
             QCheckBox {
                 color: #f3f3f3;
                 spacing: 8px;
@@ -88,16 +84,27 @@ class SolversEditor(QWidget):
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(28, 24, 28, 24)
-        root_layout.setSpacing(14)
+        root_layout.setSpacing(16)
 
-        title = QLabel("Solvers Configuration")
+        title = QLabel("Solvers")
         title.setStyleSheet("""
             font-size: 28px;
             font-weight: 800;
             color: #f3f3f3;
         """)
 
-        root_layout.addWidget(title)
+        controls_layout = QHBoxLayout()
+        controls_layout.setSpacing(10)
+
+        self.reload_button = QPushButton("Reload")
+        self.reload_button.clicked.connect(self.reload_all)
+
+        self.save_button = QPushButton("Save")
+        self.save_button.clicked.connect(self.save_all)
+
+        controls_layout.addWidget(self.reload_button)
+        controls_layout.addWidget(self.save_button)
+        controls_layout.addStretch()
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -115,22 +122,10 @@ class SolversEditor(QWidget):
         self.content_layout.setSpacing(22)
 
         self.scroll.setWidget(self.content)
+
+        root_layout.addWidget(title)
+        root_layout.addLayout(controls_layout)
         root_layout.addWidget(self.scroll, 1)
-
-        buttons_row = QHBoxLayout()
-        buttons_row.setSpacing(10)
-
-        self.reload_button = QPushButton("Reload")
-        self.reload_button.clicked.connect(self.reload_all)
-
-        self.save_button = QPushButton("Save Solvers Config")
-        self.save_button.clicked.connect(self.save_all)
-
-        buttons_row.addWidget(self.reload_button)
-        buttons_row.addWidget(self.save_button)
-        buttons_row.addStretch()
-
-        root_layout.addLayout(buttons_row)
 
     # =========================================================
     # LOAD
@@ -168,7 +163,6 @@ class SolversEditor(QWidget):
             item = self.content_layout.takeAt(0)
             widget = item.widget()
             child_layout = item.layout()
-
             if widget is not None:
                 widget.deleteLater()
             elif child_layout is not None:
@@ -179,7 +173,6 @@ class SolversEditor(QWidget):
             item = layout.takeAt(0)
             widget = item.widget()
             child_layout = item.layout()
-
             if widget is not None:
                 widget.deleteLater()
             elif child_layout is not None:
@@ -199,7 +192,6 @@ class SolversEditor(QWidget):
             label = QLabel(self._pretty_label(key))
             input_widget = self._create_input_widget(value)
             self.global_inputs[key] = input_widget
-
             grid.addWidget(label, row, 0)
             grid.addWidget(input_widget, row, 1)
             row += 1
@@ -236,26 +228,23 @@ class SolversEditor(QWidget):
                     color: #dcdcdc;
                 """)
 
-                checkbox = QCheckBox("Enabled")
-                checkbox.setChecked(solver_name in enabled_solvers)
-                self.registry_enabled_inputs[solver_name] = checkbox
+                enabled_checkbox = QCheckBox("Enabled")
+                enabled_checkbox.setChecked(solver_name in enabled_solvers)
+                self.registry_enabled_inputs[solver_name] = enabled_checkbox
 
                 solver_title_row.addWidget(solver_label)
                 solver_title_row.addStretch()
-                solver_title_row.addWidget(checkbox)
-
+                solver_title_row.addWidget(enabled_checkbox)
                 section_layout.addLayout(solver_title_row)
 
-                meta_grid = self._create_form_grid()
                 self.registry_meta_inputs[solver_name] = {}
+                meta_grid = self._create_form_grid()
 
                 row = 0
                 for meta_key, meta_value in solver_meta.items():
                     label = QLabel(self._pretty_label(meta_key))
                     input_widget = self._create_input_widget(meta_value)
-
                     self.registry_meta_inputs[solver_name][meta_key] = input_widget
-
                     meta_grid.addWidget(label, row, 0)
                     meta_grid.addWidget(input_widget, row, 1)
                     row += 1
@@ -274,12 +263,10 @@ class SolversEditor(QWidget):
 
         all_solver_names = []
         seen = set()
-
         for name in registry_solvers:
             if name not in seen:
                 all_solver_names.append(name)
                 seen.add(name)
-
         for name in solvers.keys():
             if name not in seen:
                 all_solver_names.append(name)
@@ -301,26 +288,18 @@ class SolversEditor(QWidget):
 
             if params:
                 grid = self._create_form_grid()
-
                 row = 0
                 for param_key, param_value in params.items():
                     label = QLabel(self._pretty_label(param_key))
                     input_widget = self._create_input_widget(param_value)
-
                     self.solver_param_inputs[solver_name][param_key] = input_widget
-
                     grid.addWidget(label, row, 0)
                     grid.addWidget(input_widget, row, 1)
                     row += 1
-
                 section_layout.addLayout(grid)
             else:
                 empty_label = QLabel("No parameters currently defined for this solver.")
-                empty_label.setStyleSheet("""
-                    color: #a8a8a8;
-                    font-size: 12px;
-                    margin-bottom: 4px;
-                """)
+                empty_label.setStyleSheet("color: #a8a8a8; font-size: 12px; margin-bottom: 4px;")
                 section_layout.addWidget(empty_label)
 
             section_layout.addWidget(self._create_thin_separator())
@@ -334,33 +313,24 @@ class SolversEditor(QWidget):
         try:
             self._save_solver_config()
             self._save_solver_registry()
-
             QMessageBox.information(
-                self,
-                "Saved",
+                self, "Saved",
                 "solver_config.json and solver_registry.json were updated successfully."
             )
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to save solver configuration.\n\n{e}"
-            )
+            QMessageBox.critical(self, "Error", f"Failed to save solver configuration.\n\n{e}")
 
     def _save_solver_config(self) -> None:
         if "global_settings" not in self.solver_config:
             self.solver_config["global_settings"] = {}
-
         for key, widget in self.global_inputs.items():
             self.solver_config["global_settings"][key] = self._read_widget_value(widget)
 
         if "solvers" not in self.solver_config:
             self.solver_config["solvers"] = {}
-
         for solver_name, params_widgets in self.solver_param_inputs.items():
             if solver_name not in self.solver_config["solvers"]:
                 self.solver_config["solvers"][solver_name] = {}
-
             for param_key, widget in params_widgets.items():
                 self.solver_config["solvers"][solver_name][param_key] = self._read_widget_value(widget)
 
@@ -378,12 +348,10 @@ class SolversEditor(QWidget):
             self.solver_registry["available_solvers"] = {}
 
         available_solvers = self.solver_registry["available_solvers"]
-
         for _, family_solvers in available_solvers.items():
             for solver_name, solver_meta in family_solvers.items():
                 if solver_name not in self.registry_meta_inputs:
                     continue
-
                 for meta_key, widget in self.registry_meta_inputs[solver_name].items():
                     solver_meta[meta_key] = self._read_widget_value(widget)
 
@@ -409,14 +377,12 @@ class SolversEditor(QWidget):
         layout = QVBoxLayout()
         layout.setSpacing(12)
         layout.setContentsMargins(0, 0, 0, 0)
-
         title = QLabel(title_text)
         title.setStyleSheet("""
             font-size: 22px;
             font-weight: 800;
             color: #f3f3f3;
         """)
-
         layout.addWidget(title)
         return layout
 
@@ -440,7 +406,7 @@ class SolversEditor(QWidget):
         line.setStyleSheet("background-color: #2f2f2f;")
         return line
 
-    def _create_input_widget(self, value: Any):
+    def _create_input_widget(self, value: Any) -> QWidget:
         if isinstance(value, bool):
             combo = QComboBox()
             combo.addItems(["True", "False"])
@@ -461,22 +427,17 @@ class SolversEditor(QWidget):
             spin.setValue(value)
             return spin
 
-        line = QLineEdit(str(value))
-        return line
+        return QLineEdit(str(value))
 
     def _read_widget_value(self, widget: Any) -> Any:
         if isinstance(widget, QComboBox):
             return widget.currentText() == "True"
-
         if isinstance(widget, QSpinBox):
             return widget.value()
-
         if isinstance(widget, QDoubleSpinBox):
             return widget.value()
-
         if isinstance(widget, QLineEdit):
             return widget.text()
-
         return None
 
     def _get_all_registry_solver_names(self) -> list[str]:

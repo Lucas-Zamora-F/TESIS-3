@@ -948,6 +948,16 @@ class BuildPage(QWidget):
             return str(path.relative_to(self.project_root))
         except Exception:
             return str(path)
+        
+    def _find_python(self) -> Optional[str]:
+        if not getattr(sys, 'frozen', False):
+            return sys.executable
+        import shutil
+        for candidate in ["python", "python3", "python.exe"]:
+            path = shutil.which(candidate)
+            if path:
+                return path
+        return None
 
 
 if __name__ == "__main__":

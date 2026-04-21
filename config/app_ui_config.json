@@ -4,13 +4,9 @@
     "show_technical_names": true,
     "confirm_before_close": true,
     "confirm_before_reset": true,
-    "auto_reload_after_save": false,
-    "show_quick_actions": true,
     "show_path_status": true,
-    "default_section": "General"
-  },
-  "behavior": {
-    "open_folders_in_system_explorer": true
+    "show_quick_actions": true,
+    "open_folders_in_explorer": true
   },
   "project": {
     "config_dir": "config",

@@ -563,7 +563,16 @@ class MetadataPage(QWidget):
 
         self.process.setProcessEnvironment(env)
 
-        self.process.setProgram(sys.executable)
+        if getattr(sys, 'frozen', False):
+            python_executable = self._find_python()
+        else:
+            python_executable = sys.executable
+
+        if not python_executable:
+            QMessageBox.critical(self, "Python Not Found", "Could not find a Python interpreter.")
+            return
+
+        self.process.setProgram(python_executable)
         self.process.setArguments([str(self.orchestrator_script_path)])
 
         self.process.readyReadStandardOutput.connect(self._read_stdout)
@@ -732,6 +741,14 @@ class MetadataPage(QWidget):
             return str(path.relative_to(self.project_root))
         except Exception:
             return str(path)
+    
+    def _find_python(self) -> Optional[str]:
+        import shutil
+        for candidate in ["python", "python3", "python.exe"]:
+            path = shutil.which(candidate)
+            if path:
+                return path
+        return None
 
 
 if __name__ == "__main__":

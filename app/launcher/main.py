@@ -1,6 +1,14 @@
 import sys
+import os
+
+# Si corre como ejecutable, apunta a la raíz de TESIS-3
+if getattr(sys, 'frozen', False):
+    project_root = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', '..'))
+    os.chdir(project_root)
+    sys.path.insert(0, project_root)
 
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
 from app.frontend.pages.build_page import BuildPage
@@ -18,6 +26,15 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("SDISG")
         self.resize(1280, 820)
+
+        if getattr(sys, 'frozen', False):
+            icon_path = os.path.join(os.path.dirname(sys.executable), '..', '..', 'app', 'frontend', 'assets', 'icons', 'sdisg_icon.ico')
+        else:
+            icon_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'assets', 'icons', 'sdisg_icon.ico')
+
+        icon_path = os.path.abspath(icon_path)
+        self.setWindowIcon(QIcon(icon_path))
+        self.setWindowIcon(QIcon(icon_path))
 
         self.stack = QStackedWidget()
 
@@ -99,6 +116,12 @@ class MainWindow(QMainWindow):
 def main() -> None:
     app = QApplication(sys.argv)
 
+    if getattr(sys, 'frozen', False):
+        icon_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', '..', 'app', 'frontend', 'assets', 'icons', 'sdisg_icon.ico'))
+    else:
+        icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'assets', 'icons', 'sdisg_icon.ico'))
+    app.setWindowIcon(QIcon(icon_path))
+
     splash = SplashScreen()
     splash.show()
 
@@ -113,8 +136,9 @@ def main() -> None:
 
     def load_app() -> None:
         try:
-            log("Checking environment...")
-            ensure_environment(log)
+            if not getattr(sys, 'frozen', False):
+                log("Checking environment...")
+                ensure_environment(log)
 
             log("Loading main interface...")
             window.show()
