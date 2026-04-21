@@ -68,6 +68,7 @@ class HomePage(QWidget):
     open_configuration = Signal()
     open_parameters = Signal()
     open_metadata = Signal()
+    open_build = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -180,9 +181,21 @@ class HomePage(QWidget):
         )
         settings_button.clicked.connect(self.open_configuration.emit)
 
+        # ============================================================
+        # BUILD BUTTON
+        # ============================================================
+        build_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/build_icon.png",
+            tooltip_text="Build",
+            icon_size=24,
+            button_size=48,
+        )
+        build_button.clicked.connect(self.open_build.emit)
+
         left_sidebar_layout.addWidget(home_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(parameters_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        left_sidebar_layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addStretch()
         left_sidebar_layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
 

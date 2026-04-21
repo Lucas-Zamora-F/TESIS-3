@@ -83,6 +83,7 @@ class ConfigurationPage(QWidget):
     open_configuration = Signal()
     open_parameters = Signal()
     open_metadata = Signal()
+    open_build = Signal()
 
     DEFAULT_CONFIG: Dict[str, Any] = {
         "ui": {
@@ -198,6 +199,14 @@ class ConfigurationPage(QWidget):
         )
         metadata_button.clicked.connect(self.open_metadata.emit)
 
+        build_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/build_icon.png",
+            tooltip_text="Build",
+            icon_size=24,
+            button_size=48,
+        )
+        build_button.clicked.connect(self.open_build.emit)
+
         settings_button = SidebarButton(
             icon_relative_path="app/frontend/assets/icons/settings_icon.png",
             tooltip_text="Configuration",
@@ -210,6 +219,7 @@ class ConfigurationPage(QWidget):
         left_sidebar_layout.addWidget(home_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(parameters_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        left_sidebar_layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addStretch()
         left_sidebar_layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar.setLayout(left_sidebar_layout)

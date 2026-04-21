@@ -1,6 +1,6 @@
 {
   "instances": {
-    "mode": "enabled"
+    "mode": "all"
   },
   "pipeline": {
     "source_table": {

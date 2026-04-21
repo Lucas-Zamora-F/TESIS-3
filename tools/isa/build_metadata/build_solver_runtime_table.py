@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import pandas as pd
+from tqdm import tqdm
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -39,20 +40,6 @@ def _flatten_available_solvers(
 ) -> dict[str, dict[str, Any]]:
     """
     Flatten the available_solvers structure.
-
-    Supports grouped structures such as:
-    {
-        "matlab_solvers": {
-            "sdpt3": {...},
-            "sedumi": {...}
-        }
-    }
-
-    and also flat structures such as:
-    {
-        "sdpt3": {...},
-        "sedumi": {...}
-    }
     """
     flat: dict[str, dict[str, Any]] = {}
 
@@ -82,9 +69,6 @@ def _flatten_available_solvers(
 def load_enabled_solvers(
     registry_path: Path = DEFAULT_REGISTRY_PATH,
 ) -> dict[str, dict[str, Any]]:
-    """
-    Load the enabled solvers from solver_registry.json.
-    """
     registry = _load_json(registry_path)
 
     enabled_solvers = registry.get("enabled_solvers", [])
@@ -112,9 +96,6 @@ def load_enabled_solvers(
 
 
 def _import_wrapper_class(module_name: str, class_name: str):
-    """
-    Import a wrapper class dynamically.
-    """
     module = importlib.import_module(module_name)
 
     if not hasattr(module, class_name):
@@ -126,10 +107,6 @@ def _import_wrapper_class(module_name: str, class_name: str):
 
 
 def _safe_runtime(result: dict[str, Any]) -> float:
-    """
-    Extract the runtime from a normalized wrapper result.
-    Return NaN if it does not exist or cannot be converted.
-    """
     if not isinstance(result, dict):
         return float("nan")
 
@@ -142,16 +119,10 @@ def _safe_runtime(result: dict[str, Any]) -> float:
 
 
 def _instance_display_name(instance_path: Path) -> str:
-    """
-    Return the display name for an instance.
-    """
     return instance_path.name
 
 
 def _normalize_instance_paths(instance_paths: Iterable[str | Path]) -> list[Path]:
-    """
-    Normalize and validate the instance paths.
-    """
     normalized_instances: list[Path] = []
 
     for instance in instance_paths:
@@ -173,19 +144,7 @@ def build_solver_runtime_table(
     registry_path: str | Path = DEFAULT_REGISTRY_PATH,
     solver_config_path: str | Path = DEFAULT_SOLVER_CONFIG_PATH,
 ) -> pd.DataFrame:
-    """
-    Build and return a runtime table with the following structure:
 
-    | Instance    | algo_sdpt3 | algo_sedumi |
-    |-------------|------------|-------------|
-    | arch0.dat-s | 12.53      | 8.91        |
-    | arch2.dat-s | 20.11      | 14.77       |
-
-    The resulting dataframe is also saved to:
-        ISA metadata/intermediates/solver_runtime_table.csv
-
-    The CSV file is overwritten on every run.
-    """
     registry_path = Path(registry_path)
     solver_config_path = Path(solver_config_path)
 
@@ -217,7 +176,7 @@ def build_solver_runtime_table(
             )
 
         # Run every instance on every enabled solver.
-        for instance_path in normalized_instances:
+        for instance_path in tqdm(normalized_instances, desc="Processing instances", unit="instance"):
             row: dict[str, Any] = {
                 "Instance": _instance_display_name(instance_path)
             }
@@ -229,7 +188,6 @@ def build_solver_runtime_table(
             rows.append(row)
 
     finally:
-        # Close wrappers if they expose a close() method.
         for wrapper in wrappers.values():
             close_method = getattr(wrapper, "close", None)
             if callable(close_method):
@@ -250,9 +208,6 @@ def build_solver_runtime_table(
 
 
 def save_solver_runtime_table(df: pd.DataFrame, output_path: str | Path) -> Path:
-    """
-    Save the solver runtime table to CSV.
-    """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_path, index=False)
@@ -260,9 +215,6 @@ def save_solver_runtime_table(df: pd.DataFrame, output_path: str | Path) -> Path
 
 
 def _run_standalone() -> None:
-    """
-    Run the module as a standalone script.
-    """
     print("========================================")
     print("BUILD SOLVER RUNTIME TABLE")
     print("========================================")

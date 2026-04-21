@@ -3,12 +3,20 @@
     "feature_m",
     "feature_n_blocks",
     "feature_n_total_matrix",
+    "feature_max_block_size",
+    "feature_min_block_size",
+    "feature_mean_block_size",
+    "feature_std_block_size",
     "feature_num_sdp_blocks",
     "feature_largest_block_fraction",
     "feature_nnz_c_upper",
+    "feature_density_c_upper",
+    "feature_total_nnz_ai_upper",
     "feature_avg_density_ai_upper",
     "feature_c_fro_norm_upper",
-    "feature_b_l2_norm"
+    "feature_c_max_abs_entry",
+    "feature_b_l2_norm",
+    "feature_global_all_coeff_dynamic_range"
   ],
   "available_features": {
     "size": {
