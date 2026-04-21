@@ -7,3 +7,6 @@
 [submodule "extern/InstanceSpace"]
 	path = extern/InstanceSpace
 	url = https://github.com/andremun/InstanceSpace
+[submodule "extern/pyInstanceSpace"]
+	path = extern/pyInstanceSpace
+	url = https://github.com/andremun/pyInstanceSpace.git
