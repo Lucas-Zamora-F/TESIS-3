@@ -1,7 +1,3 @@
-# ======================================================================================
-# RUN EXPLOREIS / INSTANCE SPACE
-# ======================================================================================
-
 from __future__ import annotations
 
 import re
@@ -17,66 +13,78 @@ import matlab.engine
 # ======================================================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
 DEFAULT_INSTANCE_SPACE_PATH = PROJECT_ROOT / "extern" / "InstanceSpace"
 DEFAULT_BUILD_BASE = PROJECT_ROOT / "matilda_out" / "build"
 DEFAULT_EXPLORE_BASE = PROJECT_ROOT / "matilda_out" / "explore"
 
 
 # ======================================================================================
-# HELPER FUNCTIONS
+# HELPERS
 # ======================================================================================
 
 def _to_matlab_path(path: Path) -> str:
     """
-    Convert a pathlib Path into a MATLAB-compatible path string.
+    Convert a Windows path to a MATLAB-friendly path using forward slashes.
     """
     return str(path.resolve()).replace("\\", "/")
 
 
-def _extract_build_timestamp(build_dir_name: str) -> str:
+def _extract_build_timestamp(build_run_name: str) -> str:
     """
-    Extract the timestamp portion from a build run directory name.
+    Extract the timestamp from a build run folder name.
 
-    Expected input:
+    Expected formats:
         run_build_YYYYMMDD_HHMMSS
+        run_build_YYYYMMDD_HHMMSS_v2
+        run_build_YYYYMMDD_HHMMSS_v3
+        ...
 
     Returns
     -------
     str
-        The extracted timestamp string: YYYYMMDD_HHMMSS
+        The extracted timestamp: YYYYMMDD_HHMMSS
     """
-    match = re.fullmatch(r"run_build_(\d{8}_\d{6})", build_dir_name)
-    if match is None:
+    match = re.match(r"^run_build_(\d{8}_\d{6})(?:_v\d+)?$", build_run_name)
+    if not match:
         raise ValueError(
-            f"Invalid build run directory name format: {build_dir_name}"
+            f"Could not extract timestamp from build run folder name: {build_run_name}"
         )
     return match.group(1)
 
 
 def _find_latest_build_run(build_base: Path) -> Path:
     """
-    Find the most recent build run directory inside matilda_out/build.
+    Find the most recent build run directory.
 
-    The selection is based on modification time.
+    Build runs are expected to be named like:
+        run_build_YYYYMMDD_HHMMSS
+        run_build_YYYYMMDD_HHMMSS_v2
+        run_build_YYYYMMDD_HHMMSS_v3
+        ...
+
+    The most recently modified matching directory is returned.
     """
     if not build_base.exists():
-        raise FileNotFoundError(f"Build output folder not found: {build_base}")
+        raise FileNotFoundError(f"Build base directory not found: {build_base}")
 
-    run_dirs = [p for p in build_base.iterdir() if p.is_dir() and p.name.startswith("run_build_")]
+    candidates = [
+        p
+        for p in build_base.iterdir()
+        if p.is_dir() and re.match(r"^run_build_\d{8}_\d{6}(?:_v\d+)?$", p.name)
+    ]
 
-    if not run_dirs:
+    if not candidates:
         raise FileNotFoundError(
-            f"No build run directories were found in: {build_base}"
+            f"No build run directories found in: {build_base}"
         )
 
-    latest_run = max(run_dirs, key=lambda p: p.stat().st_mtime)
-    return latest_run
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0]
 
 
 def _build_explore_run_dir(explore_base: Path, timestamp: str) -> Path:
     """
-    Create a new explore run directory using the same timestamp as the source build run.
+    Create a new explore run directory using the build timestamp.
 
     Naming rule:
         run_explore_YYYYMMDD_HHMMSS
@@ -138,6 +146,119 @@ def _prepare_explore_inputs(build_run_dir: Path, explore_run_dir: Path) -> None:
     print(f"[OK] Copied metadata.csv   -> {dst_metadata_test} (as metadata_test.csv)")
 
 
+def _patch_model_mat_for_explore(eng: matlab.engine.MatlabEngine, model_mat_path: Path) -> None:
+    """
+    Patch the copied model.mat so it matches what exploreIS expects.
+
+    Problem:
+    - buildIS saves top-level variables such as:
+        prelim, pilot, pythia, trace, etc.
+    - exploreIS expects top-level variables:
+        bound, norm, ...
+
+    Fix:
+    - Load model.mat
+    - Reuse S.prelim to create:
+        bound = S.prelim
+        norm  = S.prelim
+    - Append bound and norm back into the copied model.mat
+
+    Notes
+    -----
+    This patch modifies only the copied model.mat in the explore folder.
+    The original build output remains untouched.
+    """
+    matlab_model_mat_path = _to_matlab_path(model_mat_path)
+
+    print("[INFO] Patching copied model.mat for exploreIS compatibility...")
+
+    eng.workspace["model_file"] = matlab_model_mat_path
+    eng.eval(
+        r"""
+        S = load(model_file);
+
+        fprintf('[MATLAB] Top-level fields in copied model.mat:\n');
+        disp(fieldnames(S));
+
+        if ~isfield(S, 'prelim')
+            error('Compatibility patch failed: copied model.mat does not contain a ''prelim'' struct.');
+        end
+
+        required_bound_fields = {'hibound', 'lobound'};
+        required_norm_fields  = {'minX', 'lambdaX', 'muX', 'sigmaX', 'lambdaY', 'muY', 'sigmaY'};
+
+        for k = 1:numel(required_bound_fields)
+            if ~isfield(S.prelim, required_bound_fields{k})
+                error(['Compatibility patch failed: prelim is missing required bound field: ' required_bound_fields{k}]);
+            end
+        end
+
+        for k = 1:numel(required_norm_fields)
+            if ~isfield(S.prelim, required_norm_fields{k})
+                error(['Compatibility patch failed: prelim is missing required norm field: ' required_norm_fields{k}]);
+            end
+        end
+
+        bound = S.prelim;
+        norm  = S.prelim;
+
+        save(model_file, 'bound', 'norm', '-append');
+
+        % Patch pythia.mu / pythia.sigma if missing (built with PYTHIA2/KNN)
+        if ~isfield(S.pythia, 'mu') || ~isfield(S.pythia, 'sigma')
+            fprintf('[MATLAB] pythia.mu/sigma missing — computing from pilot.Z (PYTHIA2 build detected).\n');
+            if ~isfield(S, 'pilot') || ~isfield(S.pilot, 'Z')
+                error('Compatibility patch failed: pilot.Z not found in model.mat — cannot recover mu/sigma.');
+            end
+            [~, pythia_mu, pythia_sigma] = zscore(S.pilot.Z);
+            pythia_sigma(pythia_sigma == 0) = 1;
+            pythia = S.pythia;
+            pythia.mu    = pythia_mu;
+            pythia.sigma = pythia_sigma;
+            if ~isfield(pythia, 'svm')
+                pythia.svm = pythia.knn;
+            end
+            save(model_file, 'pythia', '-append');
+            fprintf('[MATLAB] pythia patched with mu, sigma (and svm alias for knn).\n');
+        end
+
+        % Pre-clip metadata_test.csv to prevent complex Box-Cox values.
+        %
+        % exploreIS applies: X_shifted = X - minX + 1, then boxcox(X_shifted, lambda).
+        % boxcox requires X_shifted > 0, i.e., X > minX - 1.
+        % Test features below that threshold produce complex values which crash PYTHIAtest.
+        %
+        % Fix: bound to [lobound, hibound] first (same as training), then enforce X >= minX - 1 + eps.
+        test_data_file = strrep(model_file, 'model.mat', 'metadata_test.csv');
+        if isfile(test_data_file) && isfield(S.prelim, 'minX')
+            Xbar     = readtable(test_data_file);
+            vlabels  = Xbar.Properties.VariableNames;
+            isfeat   = strncmpi(vlabels, 'feature_', 8);
+            Xfeat    = Xbar{:, isfeat};
+
+            himask = bsxfun(@gt, Xfeat, S.prelim.hibound);
+            lomask = bsxfun(@lt, Xfeat, S.prelim.lobound);
+            Xfeat  = Xfeat .* ~(himask | lomask) ...
+                   + bsxfun(@times, himask, S.prelim.hibound) ...
+                   + bsxfun(@times, lomask, S.prelim.lobound);
+
+            boxcox_lo       = S.prelim.minX - 1 + 1e-10;
+            Xfeat           = max(Xfeat, boxcox_lo);
+            Xbar{:, isfeat} = Xfeat;
+            writetable(Xbar, test_data_file);
+            fprintf('[MATLAB] metadata_test.csv pre-clipped: bounded to [lobound,hibound] and X >= minX-1+eps.\n');
+        end
+
+        S_after = load(model_file);
+        fprintf('[MATLAB] Top-level fields after patch:\n');
+        disp(fieldnames(S_after));
+        """,
+        nargout=0,
+    )
+
+    print("[OK] model.mat patched successfully with top-level fields: bound, norm")
+
+
 # ======================================================================================
 # MAIN EXECUTION FUNCTION
 # ======================================================================================
@@ -157,7 +278,8 @@ def run_explore_is(
     3. Copies:
         - model.mat
         - metadata.csv -> metadata_test.csv
-    4. Runs exploreIS(rootdir).
+    4. Patches the copied model.mat so it matches exploreIS expectations.
+    5. Runs exploreIS(rootdir).
 
     Parameters
     ----------
@@ -221,12 +343,15 @@ def run_explore_is(
 
         matlab_instance_space_path = _to_matlab_path(instance_space_path)
         matlab_explore_run_dir = _to_matlab_path(explore_run_dir)
+        copied_model_mat = explore_run_dir / "model.mat"
 
         print("[INFO] Adding InstanceSpace root to MATLAB path...")
         eng.addpath(matlab_instance_space_path, nargout=0)
 
         print("[INFO] Adding InstanceSpace subfolders recursively with genpath...")
         eng.eval(f"addpath(genpath('{matlab_instance_space_path}'));", nargout=0)
+
+        _patch_model_mat_for_explore(eng, copied_model_mat)
 
         print("[INFO] Running exploreIS(rootdir)...")
         eng.eval(f"exploreIS('{matlab_explore_run_dir}/');", nargout=0)

@@ -4,9 +4,3 @@
 [submodule "extern/sedumi"]
 	path = extern/sedumi
 	url = https://github.com/sqlp/sedumi.git
-[submodule "extern/InstanceSpace"]
-	path = extern/InstanceSpace
-	url = https://github.com/andremun/InstanceSpace
-[submodule "extern/pyInstanceSpace"]
-	path = extern/pyInstanceSpace
-	url = https://github.com/andremun/pyInstanceSpace.git

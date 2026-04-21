@@ -46,7 +46,7 @@
         },
         "pythia": {
             "flag": true,
-            "useknn": true,
+            "useknn": false,
             "cvfolds": 5,
             "ispolykrnl": false,
             "useweights": false,

@@ -716,7 +716,12 @@ class BuildPage(QWidget):
             env.insert("PYTHONPATH", project_root_str)
 
         self.process.setProcessEnvironment(env)
-        self.process.setProgram(sys.executable)
+        python = self._find_python()
+        if python is None:
+            QMessageBox.critical(self, "Python Not Found", "Could not locate a Python interpreter.")
+            return
+
+        self.process.setProgram(python)
         self.process.setArguments([str(self.build_script_path)])
 
         self.process.readyReadStandardOutput.connect(self._read_stdout)
