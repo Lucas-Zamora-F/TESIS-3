@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -55,14 +56,6 @@ def _extract_build_timestamp(build_run_name: str) -> str:
 def _find_latest_build_run(build_base: Path) -> Path:
     """
     Find the most recent build run directory.
-
-    Build runs are expected to be named like:
-        run_build_YYYYMMDD_HHMMSS
-        run_build_YYYYMMDD_HHMMSS_v2
-        run_build_YYYYMMDD_HHMMSS_v3
-        ...
-
-    The most recently modified matching directory is returned.
     """
     if not build_base.exists():
         raise FileNotFoundError(f"Build base directory not found: {build_base}")
@@ -74,9 +67,7 @@ def _find_latest_build_run(build_base: Path) -> Path:
     ]
 
     if not candidates:
-        raise FileNotFoundError(
-            f"No build run directories found in: {build_base}"
-        )
+        raise FileNotFoundError(f"No build run directories found in: {build_base}")
 
     candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return candidates[0]
@@ -85,17 +76,6 @@ def _find_latest_build_run(build_base: Path) -> Path:
 def _build_explore_run_dir(explore_base: Path, timestamp: str) -> Path:
     """
     Create a new explore run directory using the build timestamp.
-
-    Naming rule:
-        run_explore_YYYYMMDD_HHMMSS
-        run_explore_YYYYMMDD_HHMMSS_v2
-        run_explore_YYYYMMDD_HHMMSS_v3
-        ...
-
-    Returns
-    -------
-    Path
-        The created explore run directory path.
     """
     explore_base.mkdir(parents=True, exist_ok=True)
 
@@ -125,10 +105,11 @@ def _prepare_explore_inputs(build_run_dir: Path, explore_run_dir: Path) -> None:
 
     Source files taken from the selected build run:
     - model.mat
-    - metadata.csv  -> renamed to metadata_test.csv
+    - metadata.csv -> renamed to metadata_test.csv
     """
     src_model = build_run_dir / "model.mat"
     src_metadata = build_run_dir / "metadata.csv"
+    src_options = build_run_dir / "options.json"
 
     if not src_model.exists():
         raise FileNotFoundError(f"model.mat not found in build run: {src_model}")
@@ -145,28 +126,52 @@ def _prepare_explore_inputs(build_run_dir: Path, explore_run_dir: Path) -> None:
     print(f"[OK] Copied model.mat       -> {dst_model}")
     print(f"[OK] Copied metadata.csv   -> {dst_metadata_test} (as metadata_test.csv)")
 
+    # Not required by exploreIS itself, but useful for reproducibility/debugging
+    if src_options.exists():
+        dst_options = explore_run_dir / "options.json"
+        shutil.copy2(src_options, dst_options)
+        print(f"[OK] Copied options.json   -> {dst_options}")
 
-def _patch_model_mat_for_explore(eng: matlab.engine.MatlabEngine, model_mat_path: Path) -> None:
+
+def _write_explore_manifest(build_run_dir: Path, explore_run_dir: Path) -> None:
     """
-    Patch the copied model.mat so it matches what exploreIS expects.
+    Write a minimal manifest JSON for debugging/reproducibility.
+    """
+    manifest = {
+        "project_root": str(PROJECT_ROOT.resolve()),
+        "build_run_dir": str(build_run_dir.resolve()),
+        "explore_run_dir": str(explore_run_dir.resolve()),
+        "copied_model": str((explore_run_dir / "model.mat").resolve()),
+        "copied_metadata_test": str((explore_run_dir / "metadata_test.csv").resolve()),
+    }
 
-    Problem:
-    - buildIS saves top-level variables such as:
-        prelim, pilot, pythia, trace, etc.
-    - exploreIS expects top-level variables:
-        bound, norm, ...
+    manifest_path = explore_run_dir / "explore_manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=4)
 
-    Fix:
-    - Load model.mat
-    - Reuse S.prelim to create:
-        bound = S.prelim
-        norm  = S.prelim
-    - Append bound and norm back into the copied model.mat
+    print(f"[OK] Wrote explore manifest -> {manifest_path}")
 
-    Notes
-    -----
-    This patch modifies only the copied model.mat in the explore folder.
-    The original build output remains untouched.
+
+def _patch_model_mat_for_explore(
+    eng: matlab.engine.MatlabEngine,
+    model_mat_path: Path,
+) -> None:
+    """
+    Patch the copied model.mat so it matches what the current exploreIS expects.
+
+    Why this is still needed:
+    - buildIS saves top-level structs, including:
+        data, prelim, featsel, pilot, pythia, trace, opts, ...
+    - exploreIS expects:
+        opts, bound, norm, featsel, pilot, pythia, trace, ...
+
+    Therefore:
+    - bound <- prelim
+    - norm  <- prelim
+
+    Also:
+    - If pythia.mu / pythia.sigma are missing, recover them from pilot.Z
+    - If pythia.svm is missing but pythia.knn exists, alias svm <- knn
     """
     matlab_model_mat_path = _to_matlab_path(model_mat_path)
 
@@ -177,86 +182,99 @@ def _patch_model_mat_for_explore(eng: matlab.engine.MatlabEngine, model_mat_path
         r"""
         S = load(model_file);
 
-        fprintf('[MATLAB] Top-level fields in copied model.mat:\n');
+        fprintf('[MATLAB] Top-level fields before patch:\n');
         disp(fieldnames(S));
 
+        if ~isfield(S, 'opts')
+            error('Compatibility patch failed: model.mat does not contain top-level field ''opts''.');
+        end
+
+        if ~isfield(S, 'featsel') || ~isfield(S.featsel, 'idx')
+            error('Compatibility patch failed: model.mat does not contain featsel.idx.');
+        end
+
+        if ~isfield(S, 'pilot')
+            error('Compatibility patch failed: model.mat does not contain top-level field ''pilot''.');
+        end
+
+        if ~isfield(S, 'pythia')
+            error('Compatibility patch failed: model.mat does not contain top-level field ''pythia''.');
+        end
+
         if ~isfield(S, 'prelim')
-            error('Compatibility patch failed: copied model.mat does not contain a ''prelim'' struct.');
+            error('Compatibility patch failed: model.mat does not contain top-level field ''prelim''.');
         end
 
-        required_bound_fields = {'hibound', 'lobound'};
-        required_norm_fields  = {'minX', 'lambdaX', 'muX', 'sigmaX', 'lambdaY', 'muY', 'sigmaY'};
-
-        for k = 1:numel(required_bound_fields)
-            if ~isfield(S.prelim, required_bound_fields{k})
-                error(['Compatibility patch failed: prelim is missing required bound field: ' required_bound_fields{k}]);
+        % -----------------------------------------------------------------
+        % Patch bound / norm from prelim if missing
+        % -----------------------------------------------------------------
+        if ~isfield(S, 'bound')
+            required_bound_fields = {'hibound', 'lobound'};
+            for k = 1:numel(required_bound_fields)
+                if ~isfield(S.prelim, required_bound_fields{k})
+                    error(['Compatibility patch failed: prelim is missing required bound field: ' required_bound_fields{k}]);
+                end
             end
+            bound = S.prelim;
+            save(model_file, 'bound', '-append');
+            fprintf('[MATLAB] Added top-level field: bound\n');
         end
 
-        for k = 1:numel(required_norm_fields)
-            if ~isfield(S.prelim, required_norm_fields{k})
-                error(['Compatibility patch failed: prelim is missing required norm field: ' required_norm_fields{k}]);
+        if ~isfield(S, 'norm')
+            required_norm_fields = {'minX', 'lambdaX', 'muX', 'sigmaX', 'lambdaY', 'muY', 'sigmaY'};
+            for k = 1:numel(required_norm_fields)
+                if ~isfield(S.prelim, required_norm_fields{k})
+                    error(['Compatibility patch failed: prelim is missing required norm field: ' required_norm_fields{k}]);
+                end
             end
+            norm = S.prelim;
+            save(model_file, 'norm', '-append');
+            fprintf('[MATLAB] Added top-level field: norm\n');
         end
 
-        bound = S.prelim;
-        norm  = S.prelim;
+        % Reload after append
+        S = load(model_file);
 
-        save(model_file, 'bound', 'norm', '-append');
-
-        % Patch pythia.mu / pythia.sigma if missing (built with PYTHIA2/KNN)
+        % -----------------------------------------------------------------
+        % Patch pythia.mu / pythia.sigma if missing
+        % -----------------------------------------------------------------
         if ~isfield(S.pythia, 'mu') || ~isfield(S.pythia, 'sigma')
-            fprintf('[MATLAB] pythia.mu/sigma missing — computing from pilot.Z (PYTHIA2 build detected).\n');
-            if ~isfield(S, 'pilot') || ~isfield(S.pilot, 'Z')
-                error('Compatibility patch failed: pilot.Z not found in model.mat — cannot recover mu/sigma.');
+            fprintf('[MATLAB] pythia.mu/sigma missing. Recomputing from pilot.Z.\n');
+
+            if ~isfield(S.pilot, 'Z')
+                error('Compatibility patch failed: pilot.Z not found in model.mat.');
             end
+
             [~, pythia_mu, pythia_sigma] = zscore(S.pilot.Z);
             pythia_sigma(pythia_sigma == 0) = 1;
+
             pythia = S.pythia;
-            pythia.mu    = pythia_mu;
+            pythia.mu = pythia_mu;
             pythia.sigma = pythia_sigma;
-            if ~isfield(pythia, 'svm')
-                pythia.svm = pythia.knn;
-            end
+
             save(model_file, 'pythia', '-append');
-            fprintf('[MATLAB] pythia patched with mu, sigma (and svm alias for knn).\n');
+            fprintf('[MATLAB] Patched pythia with mu and sigma.\n');
         end
 
-        % Pre-clip metadata_test.csv to prevent complex Box-Cox values.
-        %
-        % exploreIS applies: X_shifted = X - minX + 1, then boxcox(X_shifted, lambda).
-        % boxcox requires X_shifted > 0, i.e., X > minX - 1.
-        % Test features below that threshold produce complex values which crash PYTHIAtest.
-        %
-        % Fix: bound to [lobound, hibound] first (same as training), then enforce X >= minX - 1 + eps.
-        test_data_file = strrep(model_file, 'model.mat', 'metadata_test.csv');
-        if isfile(test_data_file) && isfield(S.prelim, 'minX')
-            Xbar     = readtable(test_data_file);
-            vlabels  = Xbar.Properties.VariableNames;
-            isfeat   = strncmpi(vlabels, 'feature_', 8);
-            Xfeat    = Xbar{:, isfeat};
-
-            himask = bsxfun(@gt, Xfeat, S.prelim.hibound);
-            lomask = bsxfun(@lt, Xfeat, S.prelim.lobound);
-            Xfeat  = Xfeat .* ~(himask | lomask) ...
-                   + bsxfun(@times, himask, S.prelim.hibound) ...
-                   + bsxfun(@times, lomask, S.prelim.lobound);
-
-            boxcox_lo       = S.prelim.minX - 1 + 1e-10;
-            Xfeat           = max(Xfeat, boxcox_lo);
-            Xbar{:, isfeat} = Xfeat;
-            writetable(Xbar, test_data_file);
-            fprintf('[MATLAB] metadata_test.csv pre-clipped: bounded to [lobound,hibound] and X >= minX-1+eps.\n');
+        % -----------------------------------------------------------------
+        % Patch pythia.svm if missing but pythia.knn exists
+        % -----------------------------------------------------------------
+        S = load(model_file);
+        if ~isfield(S.pythia, 'svm') && isfield(S.pythia, 'knn')
+            pythia = S.pythia;
+            pythia.svm = pythia.knn;
+            save(model_file, 'pythia', '-append');
+            fprintf('[MATLAB] Patched pythia.svm from pythia.knn.\n');
         end
 
-        S_after = load(model_file);
         fprintf('[MATLAB] Top-level fields after patch:\n');
+        S_after = load(model_file);
         disp(fieldnames(S_after));
         """,
         nargout=0,
     )
 
-    print("[OK] model.mat patched successfully with top-level fields: bound, norm")
+    print("[OK] model.mat patched successfully")
 
 
 # ======================================================================================
@@ -272,29 +290,15 @@ def run_explore_is(
     """
     Run InstanceSpace exploreIS using the latest build run by default.
 
-    The script:
-    1. Locates the latest build run in matilda_out/build (unless one is provided).
-    2. Creates a new explore run directory in matilda_out/explore using the same timestamp.
-    3. Copies:
+    Steps
+    -----
+    1. Locate the latest build run in matilda_out/build (unless one is provided).
+    2. Create a new explore run directory in matilda_out/explore with the same timestamp.
+    3. Copy:
         - model.mat
         - metadata.csv -> metadata_test.csv
-    4. Patches the copied model.mat so it matches exploreIS expectations.
-    5. Runs exploreIS(rootdir).
-
-    Parameters
-    ----------
-    build_run_dir : Path | None
-        Specific build run directory to use.
-        If None, the latest run in matilda_out/build is used.
-    instance_space_path : Path | None
-        Path to the extern/InstanceSpace submodule.
-        If None, the default project path is used.
-    build_base : Path | None
-        Base directory containing build runs.
-        If None, the default project path is used.
-    explore_base : Path | None
-        Base directory where explore runs will be created.
-        If None, the default project path is used.
+    4. Patch the copied model.mat for current exploreIS compatibility.
+    5. Run exploreIS(rootdir).
 
     Returns
     -------
@@ -320,6 +324,10 @@ def run_explore_is(
             f"InstanceSpace submodule not found at: {instance_space_path}"
         )
 
+    exploreis_path = instance_space_path / "exploreIS.m"
+    if not exploreis_path.exists():
+        raise FileNotFoundError(f"exploreIS.m not found at: {exploreis_path}")
+
     timestamp = _extract_build_timestamp(build_run_dir.name)
     explore_run_dir = _build_explore_run_dir(explore_base, timestamp)
 
@@ -335,6 +343,7 @@ def run_explore_is(
 
     print("\n[INFO] Preparing exploreIS input files...")
     _prepare_explore_inputs(build_run_dir, explore_run_dir)
+    _write_explore_manifest(build_run_dir, explore_run_dir)
 
     eng = None
     try:
