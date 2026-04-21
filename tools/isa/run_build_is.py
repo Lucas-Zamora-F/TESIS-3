@@ -45,26 +45,34 @@ def _timestamp() -> str:
 
 def _create_run_dir(output_base: Path) -> Path:
     """
-    Create a new run directory under the output base folder.
+    Create a new unique run directory under the output base folder.
 
-    Example:
-        matilda_out/build/run_build_20260420_154500
+    Examples
+    --------
+    matilda_out/build/run_build_20260421_121500
+    matilda_out/build/run_build_20260421_121500_v2
     """
-    run_dir = output_base / f"run_build_{_timestamp()}"
-    run_dir.mkdir(parents=True, exist_ok=False)
-    return run_dir
+    output_base.mkdir(parents=True, exist_ok=True)
+
+    base_name = f"run_build_{_timestamp()}"
+    run_dir = output_base / base_name
+
+    if not run_dir.exists():
+        run_dir.mkdir(parents=True, exist_ok=False)
+        return run_dir
+
+    version = 2
+    while True:
+        candidate = output_base / f"{base_name}_v{version}"
+        if not candidate.exists():
+            candidate.mkdir(parents=True, exist_ok=False)
+            return candidate
+        version += 1
 
 
 def _normalize_instances_column(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensure the metadata contains an 'instances' column exactly with this name.
-
-    The input CSV may contain a differently capitalized version such as:
-    - Instances
-    - INSTANCES
-    - instances
-
-    This function renames it to 'instances' if needed.
     """
     lower_to_original = {col.lower(): col for col in df.columns}
 
@@ -78,12 +86,30 @@ def _normalize_instances_column(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _normalize_source_column(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normalize 'Source' / 'SOURCE' / 'source' into exactly 'source' if present.
+    """
+    lower_to_original = {col.lower(): col for col in df.columns}
+
+    if "source" in lower_to_original:
+        original_name = lower_to_original["source"]
+        if original_name != "source":
+            df = df.rename(columns={original_name: "source"})
+
+    return df
+
+
 def _validate_metadata_columns(df: pd.DataFrame) -> None:
     """
-    Validate that the metadata contains at least:
-    - one feature_* column
-    - one algo_* column
+    Validate that metadata contains:
+    - instances
+    - at least one feature_* column
+    - at least one algo_* column
     """
+    if "instances" not in df.columns:
+        raise ValueError("metadata.csv must contain an 'instances' column.")
+
     feature_cols = [col for col in df.columns if col.startswith("feature_")]
     algo_cols = [col for col in df.columns if col.startswith("algo_")]
 
@@ -94,29 +120,202 @@ def _validate_metadata_columns(df: pd.DataFrame) -> None:
         raise ValueError("metadata.csv does not contain any 'algo_*' columns.")
 
 
+def _print_metadata_summary(df: pd.DataFrame) -> None:
+    """
+    Print a concise metadata summary for debugging.
+    """
+    feature_cols = [col for col in df.columns if col.startswith("feature_")]
+    algo_cols = [col for col in df.columns if col.startswith("algo_")]
+    has_source = "source" in df.columns
+
+    print("[INFO] Metadata summary:")
+    print(f"       Rows                  : {len(df)}")
+    print(f"       Total columns         : {len(df.columns)}")
+    print(f"       Feature columns       : {len(feature_cols)}")
+    print(f"       Algorithm columns     : {len(algo_cols)}")
+    print(f"       Contains source       : {has_source}")
+
+
+def _print_feature_diagnostics(df: pd.DataFrame) -> None:
+    """
+    Print diagnostics for feature columns:
+    - missing values
+    - unique values
+    - constant features
+    """
+    feature_cols = [col for col in df.columns if col.startswith("feature_")]
+    if not feature_cols:
+        return
+
+    feature_df = df[feature_cols]
+
+    missing_count = feature_df.isna().sum()
+    unique_count = feature_df.nunique(dropna=True)
+
+    constant_features = unique_count[unique_count <= 1].index.tolist()
+    all_nan_features = missing_count[missing_count == len(df)].index.tolist()
+
+    print("\n" + "=" * 80)
+    print("FEATURE DIAGNOSTICS")
+    print("=" * 80)
+    print(f"[INFO] Total feature columns        : {len(feature_cols)}")
+    print(f"[INFO] Constant feature columns    : {len(constant_features)}")
+    print(f"[INFO] All-NaN feature columns     : {len(all_nan_features)}")
+
+    if constant_features:
+        print("[WARN] Constant features:")
+        for col in constant_features:
+            print(f"       - {col}")
+
+    if all_nan_features:
+        print("[WARN] All-NaN features:")
+        for col in all_nan_features:
+            print(f"       - {col}")
+
+    print("[INFO] Feature missing values:")
+    for col, val in missing_count.items():
+        print(f"       - {col}: {val}")
+
+    print("[INFO] Feature unique values:")
+    for col, val in unique_count.items():
+        print(f"       - {col}: {val}")
+
+
+def _print_algorithm_diagnostics(df: pd.DataFrame) -> None:
+    """
+    Print diagnostics for algorithm columns:
+    - missing values
+    - min / max
+    - rows where all algorithms are NaN
+    """
+    algo_cols = [col for col in df.columns if col.startswith("algo_")]
+    if not algo_cols:
+        return
+
+    algo_df = df[algo_cols]
+
+    print("\n" + "=" * 80)
+    print("ALGORITHM DIAGNOSTICS")
+    print("=" * 80)
+
+    missing_count = algo_df.isna().sum()
+    non_missing_count = algo_df.notna().sum()
+    min_vals = algo_df.min(numeric_only=True)
+    max_vals = algo_df.max(numeric_only=True)
+
+    print(f"[INFO] Total algorithm columns      : {len(algo_cols)}")
+
+    print("[INFO] Algorithm missing values:")
+    for col, val in missing_count.items():
+        print(f"       - {col}: {val}")
+
+    print("[INFO] Algorithm non-missing values:")
+    for col, val in non_missing_count.items():
+        print(f"       - {col}: {val}")
+
+    print("[INFO] Algorithm minimum values:")
+    for col, val in min_vals.items():
+        print(f"       - {col}: {val}")
+
+    print("[INFO] Algorithm maximum values:")
+    for col, val in max_vals.items():
+        print(f"       - {col}: {val}")
+
+    rows_all_nan = int(algo_df.isna().all(axis=1).sum())
+    print(f"[INFO] Rows with all algo_* as NaN : {rows_all_nan}")
+
+
 def _prepare_metadata(src_metadata_path: Path, run_dir: Path) -> Path:
     """
-    Load, validate, normalize, and copy the metadata.csv into the run directory.
+    Load, validate, normalize, and copy metadata.csv into the run directory.
 
     Returns
     -------
     Path
-        The destination metadata.csv path inside the run directory.
+        Destination metadata.csv path inside the run directory.
     """
     if not src_metadata_path.exists():
         raise FileNotFoundError(f"Metadata file not found: {src_metadata_path}")
 
-    print("[INFO] Loading metadata...")
+    print("[INFO] Loading metadata CSV...")
     df = pd.read_csv(src_metadata_path)
 
     df = _normalize_instances_column(df)
+    df = _normalize_source_column(df)
+
     _validate_metadata_columns(df)
+    _print_metadata_summary(df)
+    _print_feature_diagnostics(df)
+    _print_algorithm_diagnostics(df)
 
     dst_metadata_path = run_dir / "metadata.csv"
     df.to_csv(dst_metadata_path, index=False)
 
-    print(f"[OK] Metadata prepared: {dst_metadata_path}")
+    print(f"\n[OK] Metadata prepared: {dst_metadata_path}")
     return dst_metadata_path
+
+
+def _inject_option_defaults(options: dict) -> dict:
+    """
+    Inject defensive defaults expected by the current InstanceSpace buildIS workflow.
+    """
+    options = dict(options)
+
+    options.setdefault("perf", {})
+    options["perf"].setdefault("MaxPerf", False)
+    options["perf"].setdefault("AbsPerf", False)
+    options["perf"].setdefault("epsilon", 0.30)
+    options["perf"].setdefault("betaThreshold", 0.55)
+
+    options.setdefault("auto", {})
+    options["auto"].setdefault("preproc", True)
+
+    options.setdefault("bound", {})
+    options["bound"].setdefault("flag", True)
+
+    options.setdefault("norm", {})
+    options["norm"].setdefault("flag", True)
+
+    options.setdefault("selvars", {})
+    options["selvars"].setdefault("smallscaleflag", False)
+    options["selvars"].setdefault("smallscale", 0.3)
+    options["selvars"].setdefault("fileidxflag", False)
+    options["selvars"].setdefault("fileidx", "")
+
+    options.setdefault("sifted", {})
+    options["sifted"].setdefault("flag", False)
+    options["sifted"].setdefault("rho", 0.3)
+    options["sifted"].setdefault("K", 6)
+    options["sifted"].setdefault("N", 1000)
+
+    options.setdefault("pilot", {})
+    options["pilot"].setdefault("analytic", False)
+    options["pilot"].setdefault("ntries", 10)
+    options["pilot"].setdefault("ISA3D", False)
+
+    options.setdefault("cloister", {})
+    options["cloister"].setdefault("pval", 0.05)
+    options["cloister"].setdefault("cthres", 0.7)
+
+    options.setdefault("pythia", {})
+    options["pythia"].setdefault("cvgrid", 10)
+    options["pythia"].setdefault("maxcvgrid", 5)
+    options["pythia"].setdefault("mincvgrid", -5)
+    options["pythia"].setdefault("cvfolds", 5)
+
+    options.setdefault("trace", {})
+    options["trace"].setdefault("usesim", False)
+    options["trace"].setdefault("RHO", 10)
+    options["trace"].setdefault("PI", 0.75)
+    options["trace"].setdefault("PCTILE", 0.3)
+    options["trace"].setdefault("Trace2", False)
+
+    options.setdefault("outputs", {})
+    options["outputs"].setdefault("csv", True)
+    options["outputs"].setdefault("web", False)
+    options["outputs"].setdefault("png", True)
+
+    return options
 
 
 def _load_build_is_options(config_path: Path) -> dict:
@@ -124,13 +323,8 @@ def _load_build_is_options(config_path: Path) -> dict:
     Load buildIS options from the JSON configuration file.
 
     Supported formats:
-    1) The JSON file itself is already the full InstanceSpace options object.
-    2) The JSON file contains a top-level 'build_is_options' key.
-
-    Returns
-    -------
-    dict
-        A dictionary that will be written as options.json for buildIS.
+    1) The JSON itself is already the full options object.
+    2) The JSON contains a top-level 'build_is_options' key.
     """
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
@@ -151,36 +345,21 @@ def _load_build_is_options(config_path: Path) -> dict:
     if not isinstance(options, dict):
         raise ValueError("The buildIS configuration must be a valid JSON object.")
 
-    # Basic validation of the expected top-level keys
-    required_keys = [
-        "parallel",
-        "perf",
-        "auto",
-        "bound",
-        "norm",
-        "selvars",
-        "sifted",
-        "outputs",
-    ]
+    if not options:
+        raise ValueError("The buildIS configuration is empty.")
 
-    missing_keys = [key for key in required_keys if key not in options]
-    if missing_keys:
-        raise ValueError(
-            "Missing required keys in instance_space_config.json: "
-            + ", ".join(missing_keys)
-        )
+    options = _inject_option_defaults(options)
+
+    print("[INFO] Top-level buildIS option keys:")
+    for key in options.keys():
+        print(f"       - {key}")
 
     return options
 
 
 def _write_options_json(run_dir: Path, options: dict) -> Path:
     """
-    Write the buildIS options into options.json inside the run directory.
-
-    Returns
-    -------
-    Path
-        The written options.json path.
+    Write buildIS options into options.json inside the run directory.
     """
     options_path = run_dir / "options.json"
 
@@ -189,6 +368,48 @@ def _write_options_json(run_dir: Path, options: dict) -> Path:
 
     print(f"[OK] Options written: {options_path}")
     return options_path
+
+
+def _validate_instance_space_path(instance_space_path: Path) -> None:
+    """
+    Validate that the InstanceSpace submodule exists and looks usable.
+    """
+    if not instance_space_path.exists():
+        raise FileNotFoundError(
+            f"InstanceSpace submodule not found at: {instance_space_path}"
+        )
+
+    buildis_path = instance_space_path / "buildIS.m"
+    if not buildis_path.exists():
+        raise FileNotFoundError(
+            f"buildIS.m not found inside InstanceSpace path: {buildis_path}"
+        )
+
+
+def _write_run_manifest(
+    run_dir: Path,
+    metadata_path: Path,
+    config_path: Path,
+    instance_space_path: Path,
+) -> Path:
+    """
+    Write a small manifest JSON for reproducibility/debugging.
+    """
+    manifest = {
+        "created_at": datetime.now().isoformat(),
+        "project_root": str(PROJECT_ROOT.resolve()),
+        "input_metadata_path": str(metadata_path.resolve()),
+        "config_path": str(config_path.resolve()),
+        "instance_space_path": str(instance_space_path.resolve()),
+        "run_dir": str(run_dir.resolve()),
+    }
+
+    manifest_path = run_dir / "run_manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=4)
+
+    print(f"[OK] Run manifest written: {manifest_path}")
+    return manifest_path
 
 
 # ======================================================================================
@@ -204,28 +425,21 @@ def run_build_is(
     """
     Run InstanceSpace buildIS on an existing metadata.csv file.
 
-    The execution output is stored in:
-        matilda_out/build/run_build_YYYYMMDD_HHMMSS
-
     Parameters
     ----------
     metadata_path : Path | None
-        Source path to the input metadata.csv file.
-        If None, the default project path is used.
+        Source path to input metadata.csv.
     instance_space_path : Path | None
-        Path to the extern/InstanceSpace submodule.
-        If None, the default project path is used.
+        Path to extern/InstanceSpace.
     output_base : Path | None
-        Base directory where the run_build_<timestamp> folder will be created.
-        If None, the default project path is used.
+        Base directory where run_build_<timestamp> will be created.
     config_path : Path | None
         Path to config/instance_space_config.json.
-        If None, the default project path is used.
 
     Returns
     -------
     Path
-        The generated run directory path.
+        Generated run directory path.
     """
     metadata_path = Path(metadata_path) if metadata_path else DEFAULT_METADATA_PATH
     instance_space_path = (
@@ -243,10 +457,7 @@ def run_build_is(
     print(f"[INFO] InstanceSpace path   : {instance_space_path}")
     print(f"[INFO] Output base          : {output_base}")
 
-    if not instance_space_path.exists():
-        raise FileNotFoundError(
-            f"InstanceSpace submodule not found at: {instance_space_path}"
-        )
+    _validate_instance_space_path(instance_space_path)
 
     print("\n[INFO] Creating run directory...")
     run_dir = _create_run_dir(output_base)
@@ -261,6 +472,14 @@ def run_build_is(
     print("\n[INFO] Writing options.json...")
     _write_options_json(run_dir, options)
 
+    print("\n[INFO] Writing run manifest...")
+    _write_run_manifest(
+        run_dir=run_dir,
+        metadata_path=metadata_path,
+        config_path=config_path,
+        instance_space_path=instance_space_path,
+    )
+
     eng = None
     try:
         print("\n[INFO] Starting MATLAB engine...")
@@ -274,6 +493,9 @@ def run_build_is(
 
         print("[INFO] Adding InstanceSpace subfolders recursively with genpath...")
         eng.eval(f"addpath(genpath('{matlab_instance_space_path}'));", nargout=0)
+
+        print("[INFO] Changing MATLAB working directory to run directory...")
+        eng.cd(matlab_run_dir, nargout=0)
 
         print("[INFO] Running buildIS(rootdir)...")
         eng.eval(f"buildIS('{matlab_run_dir}/');", nargout=0)
