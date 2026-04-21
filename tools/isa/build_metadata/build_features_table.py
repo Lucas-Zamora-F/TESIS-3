@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Callable, Any, Iterable
 
 import pandas as pd
+from tqdm import tqdm
 
+from tools.features.instance_reader import (
+    collect_supported_instances,
+    instance_display_name,
+)
 
 FeatureExtractor = Callable[[str | Path], dict[str, Any]]
 
@@ -62,10 +67,10 @@ def import_extractor_from_path(import_path: str) -> FeatureExtractor:
     return extractor
 
 
-def collect_dat_s_instances(instances: str | Path | Iterable[str | Path]) -> list[Path]:
+def collect_instances(instances: str | Path | Iterable[str | Path]) -> list[Path]:
     """
     Accept:
-    - a directory containing .dat-s files
+    - a directory containing supported instance files (.dat-s, .mat)
     - a list of instance file paths
     - a single instance file path
     """
@@ -73,10 +78,10 @@ def collect_dat_s_instances(instances: str | Path | Iterable[str | Path]) -> lis
         instances_path = Path(instances)
 
         if instances_path.is_dir():
-            instance_paths = sorted(instances_path.glob("*.dat-s"))
+            instance_paths = collect_supported_instances(instances_path)
             if not instance_paths:
                 raise FileNotFoundError(
-                    f"No .dat-s files were found in: {instances_path}"
+                    f"No supported instance files were found in: {instances_path}"
                 )
             return instance_paths
 
@@ -173,21 +178,29 @@ def build_features_table(
 
     The CSV file is overwritten on every run.
     """
-    instance_paths = collect_dat_s_instances(instances)
+    instance_paths = collect_instances(instances)
     _, available_features, group_to_enabled_features = parse_feature_configuration(
         config_path
     )
 
     rows: list[dict[str, Any]] = []
 
-    for instance_path in instance_paths:
-        row: dict[str, Any] = {"Instance": instance_path.name}
+    for instance_path in tqdm(instance_paths, desc="Extracting features", unit="instance"):
+        row: dict[str, Any] = {"Instance": instance_display_name(instance_path)}
 
         for group_name, enabled_group_features in group_to_enabled_features.items():
             extractor_path = available_features[group_name]["extractor"]
             extractor = import_extractor_from_path(extractor_path)
 
-            feature_dict = extractor(instance_path)
+            try:
+                feature_dict = extractor(instance_path)
+            except MemoryError:
+                feature_dict = {feature_name: None for feature_name in enabled_group_features}
+                print(
+                    "[WARN] Not enough memory to extract "
+                    f"'{group_name}' features for {instance_path}. "
+                    "Filling enabled features with null values."
+                )
 
             if not isinstance(feature_dict, dict):
                 raise TypeError(

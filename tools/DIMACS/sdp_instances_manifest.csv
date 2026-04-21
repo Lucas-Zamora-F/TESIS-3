@@ -1,0 +1,34 @@
+source,target,status,detail
+BISECT/biomedP.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/BISECT/biomedP.mat,skipped-huge,n=6514 exceeds --max-convert-n=5000; use --allow-huge to force
+BISECT/bm1.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/BISECT/bm1.mat,skipped,official same-name SDP .mat exists and will be copied
+BISECT/bm1.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/BISECT/bm1.mat,copied,already SDP
+BISECT/industry2.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/BISECT/industry2.mat,skipped-huge,n=12637 exceeds --max-convert-n=5000; use --allow-huge to force
+COPOS/copo14.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/COPOS/copo14.mat,copied,already SDP
+COPOS/copo23.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/COPOS/copo23.mat,copied,already SDP
+COPOS/copo68.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/COPOS/copo68.mat,copied,already SDP
+FAP/fap09.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FAP/fap09.mat,skipped,official same-name SDP .mat exists and will be copied
+FAP/fap09.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FAP/fap09.mat,copied,already SDP
+FAP/fap25.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FAP/fap25.mat,skipped,official same-name SDP .mat exists and will be copied
+FAP/fap25.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FAP/fap25.mat,copied,already SDP
+FAP/fap36.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FAP/fap36.mat,converted,FAP .dat converted to SDP SeDuMi .mat
+FILTER/filter48_socp.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FILTER/filter48_socp.mat,copied,already SDP
+FILTER/filtinf1.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FILTER/filtinf1.mat,copied,already SDP
+FILTER/minphase.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/FILTER/minphase.mat,copied,already SDP
+HAMMING/hamming_10_2.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HAMMING/hamming_10_2.mat,copied,already SDP
+HAMMING/hamming_11_2.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HAMMING/hamming_11_2.mat,copied,already SDP
+HAMMING/hamming_7_5_6.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HAMMING/hamming_7_5_6.mat,copied,already SDP
+HAMMING/hamming_8_3_4.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HAMMING/hamming_8_3_4.mat,copied,already SDP
+HAMMING/hamming_9_5_6.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HAMMING/hamming_9_5_6.mat,copied,already SDP
+HAMMING/hamming_9_8.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HAMMING/hamming_9_8.mat,copied,already SDP
+HINF/hinf12.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HINF/hinf12.mat,copied,already SDP
+HINF/hinf13.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/HINF/hinf13.mat,copied,already SDP
+TORUS/torusg3-15.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/torusg3-15.mat,skipped,official same-name SDP .mat exists and will be copied
+TORUS/torusg3-15.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/torusg3-15.mat,copied,already SDP
+TORUS/torusg3-8.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/torusg3-8.mat,skipped,official same-name SDP .mat exists and will be copied
+TORUS/torusg3-8.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/torusg3-8.mat,copied,already SDP
+TORUS/toruspm3-15-50.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/toruspm3-15-50.mat,skipped,official same-name SDP .mat exists and will be copied
+TORUS/toruspm3-15-50.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/toruspm3-15-50.mat,copied,already SDP
+TORUS/toruspm3-8-50.dat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/toruspm3-8-50.mat,skipped,official same-name SDP .mat exists and will be copied
+TORUS/toruspm3-8-50.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TORUS/toruspm3-8-50.mat,copied,already SDP
+TRUSS/truss5.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TRUSS/truss5.mat,copied,already SDP
+TRUSS/truss8.mat,C:/Users/Lucas Zamora/Desktop/TESIS-3/data/instances/DIMACS/instances/TRUSS/truss8.mat,copied,already SDP

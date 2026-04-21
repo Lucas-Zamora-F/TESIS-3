@@ -9,6 +9,10 @@ from typing import Any, Iterable
 import pandas as pd
 from tqdm import tqdm
 
+from tools.features.instance_reader import (
+    collect_supported_instances,
+    instance_display_name,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_REGISTRY_PATH = PROJECT_ROOT / "config" / "solver_registry.json"
@@ -119,7 +123,7 @@ def _safe_runtime(result: dict[str, Any]) -> float:
 
 
 def _instance_display_name(instance_path: Path) -> str:
-    return instance_path.name
+    return instance_display_name(instance_path)
 
 
 def _normalize_instance_paths(instance_paths: Iterable[str | Path]) -> list[Path]:
@@ -223,11 +227,11 @@ def _run_standalone() -> None:
     print(f"[INFO] Solver config path  : {DEFAULT_SOLVER_CONFIG_PATH}")
     print(f"[INFO] Output path         : {DEFAULT_OUTPUT_PATH}")
 
-    instance_paths = sorted(DEFAULT_INSTANCES_DIR.glob("*.dat-s"))
+    instance_paths = collect_supported_instances(DEFAULT_INSTANCES_DIR)
 
     if not instance_paths:
         raise FileNotFoundError(
-            f"No .dat-s files were found in: {DEFAULT_INSTANCES_DIR}"
+            f"No supported instance files were found in: {DEFAULT_INSTANCES_DIR}"
         )
 
     df = build_solver_runtime_table(

@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from tools.features.instance_reader import instance_display_name, read_problem_data
+
 
 def _is_comment_or_empty(line: str) -> bool:
     stripped = line.strip()
@@ -91,13 +93,16 @@ def _read_header_lines(instance_path: Path) -> tuple[int, int, list[int]]:
 
 def extract_size_features(instance_path: str | Path) -> dict[str, Any]:
     """
-    Extrae size features desde una instancia .dat-s.
+    Extrae size features desde una instancia .dat-s o .mat SeDuMi.
 
     Retorna un diccionario listo para agregarse a una fila de DataFrame.
     """
     instance_path = Path(instance_path)
 
-    m, n_blocks, block_sizes = _read_header_lines(instance_path)
+    problem = read_problem_data(instance_path, include_entries=False)
+    m = problem.m
+    n_blocks = problem.n_blocks
+    block_sizes = problem.block_sizes
 
     positive_blocks = [b for b in block_sizes if b > 0]
     negative_blocks = [b for b in block_sizes if b < 0]
@@ -129,7 +134,7 @@ def extract_size_features(instance_path: str | Path) -> dict[str, Any]:
     aspect_ratio_m_over_nsq = m / (n_total_matrix ** 2) if n_total_matrix > 0 else None
 
     features = {
-        "Instance": instance_path.name,
+        "Instance": instance_display_name(instance_path),
         "feature_m": m,
         "feature_n_blocks": n_blocks,
         "feature_n_total_matrix": n_total_matrix,

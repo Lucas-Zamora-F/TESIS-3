@@ -6,6 +6,10 @@ if getattr(sys, 'frozen', False):
     project_root = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', '..'))
     os.chdir(project_root)
     sys.path.insert(0, project_root)
+else:
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon

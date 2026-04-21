@@ -1,5 +1,5 @@
 function result = run_sedumi_instance(instance_path, varargin)
-%RUN_SEDUMI_INSTANCE Ejecuta una instancia .dat-s con SeDuMi y devuelve struct.
+%RUN_SEDUMI_INSTANCE Ejecuta una instancia .dat-s o .mat con SeDuMi.
 %
 % Basado en la lógica del wrapper antiguo:
 % - Lee con fromsdpa
@@ -45,7 +45,46 @@ function result = run_sedumi_instance(instance_path, varargin)
             diary(opts.log_path);
         end
 
-        [At, b, c, K] = fromsdpa(instance_path);
+        [~, ~, ext] = fileparts(instance_path);
+        if strcmpi(ext, '.mat')
+            data = load(instance_path);
+
+            if isfield(data, 'At')
+                At = data.At;
+            elseif isfield(data, 'A')
+                A = data.A;
+                if size(A, 1) == length(data.b)
+                    At = A';
+                else
+                    At = A;
+                end
+            else
+                error('MAT file must contain A or At.');
+            end
+
+            if isfield(data, 'c')
+                c = data.c;
+            elseif isfield(data, 'C')
+                c = data.C;
+            else
+                error('MAT file must contain c or C.');
+            end
+
+            b = data.b;
+            K = data.K;
+
+            if size(b, 1) == 1
+                b = b';
+            end
+            if size(c, 1) == 1
+                c = c';
+            end
+            if numel(c) == 1 && size(At, 1) > 1
+                c = c * ones(size(At, 1), 1);
+            end
+        else
+            [At, b, c, K] = fromsdpa(instance_path);
+        end
 
         pars = struct();
         pars.eps = opts.target_tol;

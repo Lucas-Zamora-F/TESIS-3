@@ -1,14 +1,29 @@
 {
   "enabled_instances": [
-    "arch0.dat-s",
-    "arch2.dat-s",
-    "arch4.dat-s",
-    "arch8.dat-s",
-    "control1.dat-s",
-    "control2.dat-s",
-    "control3.dat-s",
-    "control4.dat-s",
-    "control5.dat-s"
+    "BISECT/bm1.mat",
+    "COPOS/copo14.mat",
+    "COPOS/copo23.mat",
+    "COPOS/copo68.mat",
+    "FAP/fap09.mat",
+    "FAP/fap25.mat",
+    "FAP/fap36.mat",
+    "FILTER/filter48_socp.mat",
+    "FILTER/filtinf1.mat",
+    "FILTER/minphase.mat",
+    "HAMMING/hamming_10_2.mat",
+    "HAMMING/hamming_11_2.mat",
+    "HAMMING/hamming_7_5_6.mat",
+    "HAMMING/hamming_8_3_4.mat",
+    "HAMMING/hamming_9_5_6.mat",
+    "HAMMING/hamming_9_8.mat",
+    "HINF/hinf12.mat",
+    "HINF/hinf13.mat",
+    "TORUS/torusg3-15.mat",
+    "TORUS/torusg3-8.mat",
+    "TORUS/toruspm3-15-50.mat",
+    "TORUS/toruspm3-8-50.mat",
+    "TRUSS/truss5.mat",
+    "TRUSS/truss8.mat"
   ],
   "available_instances": {
     "sdplib": [
@@ -100,6 +115,32 @@
       "truss6.dat-s",
       "truss7.dat-s",
       "truss8.dat-s"
+    ],
+    "dimacs": [
+      "BISECT/bm1.mat",
+      "COPOS/copo14.mat",
+      "COPOS/copo23.mat",
+      "COPOS/copo68.mat",
+      "FAP/fap09.mat",
+      "FAP/fap25.mat",
+      "FAP/fap36.mat",
+      "FILTER/filter48_socp.mat",
+      "FILTER/filtinf1.mat",
+      "FILTER/minphase.mat",
+      "HAMMING/hamming_10_2.mat",
+      "HAMMING/hamming_11_2.mat",
+      "HAMMING/hamming_7_5_6.mat",
+      "HAMMING/hamming_8_3_4.mat",
+      "HAMMING/hamming_9_5_6.mat",
+      "HAMMING/hamming_9_8.mat",
+      "HINF/hinf12.mat",
+      "HINF/hinf13.mat",
+      "TORUS/torusg3-15.mat",
+      "TORUS/torusg3-8.mat",
+      "TORUS/toruspm3-15-50.mat",
+      "TORUS/toruspm3-8-50.mat",
+      "TRUSS/truss5.mat",
+      "TRUSS/truss8.mat"
     ]
   }
 }

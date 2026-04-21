@@ -30,6 +30,7 @@ class InstanceSpaceEditor(QWidget):
         super().__init__()
 
         self.inputs: dict[str, Any] = {}
+        self.uses_wrapped_options = False
 
         self.setStyleSheet("""
             QWidget {
@@ -127,14 +128,33 @@ class InstanceSpaceEditor(QWidget):
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            build = config.get("build_is_options", {})
+            build = self._get_build_options(config)
             for section, values in build.items():
-                self._add_section(section, values)
+                if isinstance(values, dict):
+                    self._add_section(section, values)
 
             self.container_layout.addStretch()
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load instance_space_config.json:\n{e}")
+
+    def _get_build_options(self, config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Support both config layouts used by the pipeline:
+        - {"build_is_options": {...}}
+        - {...} as the direct buildIS options object.
+        """
+        if "build_is_options" in config:
+            self.uses_wrapped_options = True
+            build = config.get("build_is_options", {})
+        else:
+            self.uses_wrapped_options = False
+            build = config
+
+        if not isinstance(build, dict):
+            raise TypeError("The buildIS options must be a JSON object.")
+
+        return build
 
     def _add_section(self, section_name: str, values: dict) -> None:
         layout = QVBoxLayout()
@@ -212,21 +232,28 @@ class InstanceSpaceEditor(QWidget):
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            build = config.get("build_is_options", {})
+            build = self._get_build_options(config)
             for section, values in build.items():
+                if not isinstance(values, dict):
+                    continue
                 for key in values.keys():
                     full_key = f"{section}.{key}"
                     widget = self.inputs.get(full_key)
                     if widget is None:
                         continue
                     if isinstance(widget, QComboBox):
-                        config["build_is_options"][section][key] = widget.currentText() == "True"
+                        build[section][key] = widget.currentText() == "True"
                     elif isinstance(widget, QSpinBox):
-                        config["build_is_options"][section][key] = widget.value()
+                        build[section][key] = widget.value()
                     elif isinstance(widget, QDoubleSpinBox):
-                        config["build_is_options"][section][key] = widget.value()
+                        build[section][key] = widget.value()
                     elif isinstance(widget, QLineEdit):
-                        config["build_is_options"][section][key] = widget.text()
+                        build[section][key] = widget.text()
+
+            if self.uses_wrapped_options:
+                config["build_is_options"] = build
+            else:
+                config = build
 
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)

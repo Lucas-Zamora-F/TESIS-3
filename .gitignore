@@ -2,6 +2,9 @@
 # OUTPUTS DEL PROYECTO (NO VERSIONAR)
 # =========================================================
 matilda_out/
+data/instances/DIMACS/
+sandbox/
+tools/installation/environment_setup_*.txt
 
 # =========================================================
 # LOGS (guardar solo el log global)

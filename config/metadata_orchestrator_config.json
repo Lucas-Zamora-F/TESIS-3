@@ -1,6 +1,6 @@
 {
   "instances": {
-    "mode": "all"
+    "mode": "enabled"
   },
   "pipeline": {
     "source_table": {
@@ -10,7 +10,7 @@
       "mode": "build"
     },
     "solver_runtime_table": {
-      "mode": "csv"
+      "mode": "build"
     }
   },
   "output": {

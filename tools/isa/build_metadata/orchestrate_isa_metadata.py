@@ -16,6 +16,7 @@ from tools.isa.build_metadata.build_features_table import build_features_table
 from tools.isa.build_metadata.build_solver_runtime_table import build_solver_runtime_table
 from tools.isa.build_metadata.build_source_table import build_source_table
 from tools.isa.build_metadata.build_isa_metadata_table import build_isa_metadata_table
+from tools.features.instance_reader import collect_supported_instances
 from tools.logging.universal_logger import (
     setup_universal_logger,
     log_event,
@@ -57,7 +58,10 @@ def orchestrate_isa_metadata(
     instances_config_path = REPO_ROOT / "config" / "instances_config.json"
     features_config_path = REPO_ROOT / "config" / "features_config.json"
     solver_registry_path = REPO_ROOT / "config" / "solver_registry.json"
-    instances_dir = REPO_ROOT / "data" / "instances" / "sdplib"
+    instances_roots = {
+        "sdplib": REPO_ROOT / "data" / "instances" / "sdplib",
+        "dimacs": REPO_ROOT / "data" / "instances" / "DIMACS" / "instances",
+    }
 
     instances_mode = config["instances"]["mode"]
     source_mode = config["pipeline"]["source_table"]["mode"]
@@ -97,7 +101,7 @@ def orchestrate_isa_metadata(
         enabled_instance_paths = _get_instance_paths(
             instances_mode=instances_mode,
             instances_config_path=instances_config_path,
-            instances_dir=instances_dir,
+            instances_roots=instances_roots,
         )
 
         print(f"[INFO] Instances selected       : {len(enabled_instance_paths)}")
@@ -279,21 +283,21 @@ def _validate_orchestrator_config(config: dict[str, Any]) -> None:
 def _get_instance_paths(
     instances_mode: str,
     instances_config_path: Path,
-    instances_dir: Path,
+    instances_roots: dict[str, Path],
 ) -> list[str]:
     """
     Resolve which instances to use based on config mode.
     """
     if instances_mode == "all":
-        print("[INFO] Loading all instances from sdplib...")
-        return _get_all_instances(instances_dir)
+        print("[INFO] Loading all supported instances...")
+        return _get_all_instances(instances_roots)
 
     if instances_mode == "enabled":
         print("[INFO] Loading enabled instances from instances_config.json...")
         enabled_instance_names = _load_enabled_instances(instances_config_path)
         return _resolve_instance_paths(
             instance_names=enabled_instance_names,
-            instances_dir=instances_dir,
+            instances_roots=instances_roots,
         )
 
     raise ValueError(f"Unsupported instances_mode: {instances_mode}")
@@ -384,19 +388,23 @@ def _load_dataframe_from_csv(csv_path: Path, dataframe_name: str) -> pd.DataFram
     return df
 
 
-def _get_all_instances(instances_dir: Path) -> list[str]:
+def _get_all_instances(instances_roots: dict[str, Path]) -> list[str]:
     """
-    Return all .dat-s instances inside the sdplib directory.
+    Return all supported instance files from every configured instance root.
     """
-    if not instances_dir.exists():
-        raise FileNotFoundError(f"Directory does not exist: {instances_dir}")
+    instances: list[Path] = []
 
-    instances = sorted(instances_dir.glob("*.dat-s"))
+    for section_name, root in instances_roots.items():
+        if not root.exists():
+            raise FileNotFoundError(
+                f"Directory for instance section '{section_name}' does not exist: {root}"
+            )
+        instances.extend(collect_supported_instances(root))
 
     if not instances:
-        raise ValueError("No .dat-s files were found in sdplib.")
+        raise ValueError("No supported instance files were found.")
 
-    return [str(path) for path in instances]
+    return [str(path) for path in sorted(instances)]
 
 
 def _load_enabled_instances(config_path: Path) -> list[str]:
@@ -425,7 +433,7 @@ def _load_enabled_instances(config_path: Path) -> list[str]:
 
 def _resolve_instance_paths(
     instance_names: list[str],
-    instances_dir: Path,
+    instances_roots: dict[str, Path],
 ) -> list[str]:
     """
     Resolve instance file names into full paths.
@@ -433,10 +441,21 @@ def _resolve_instance_paths(
     resolved_paths: list[str] = []
 
     for name in instance_names:
-        path = instances_dir / name
+        raw_path = Path(name)
+        candidates: list[Path] = []
 
-        if not path.exists():
-            raise FileNotFoundError(f"Instance file not found: {path}")
+        if raw_path.is_absolute():
+            candidates.append(raw_path)
+        else:
+            candidates.extend(root / name for root in instances_roots.values())
+
+        path = next((candidate for candidate in candidates if candidate.exists()), None)
+
+        if path is None:
+            searched = ", ".join(str(candidate) for candidate in candidates)
+            raise FileNotFoundError(
+                f"Instance file not found for '{name}'. Searched: {searched}"
+            )
 
         if not path.is_file():
             raise ValueError(f"Resolved path is not a file: {path}")

@@ -1,5 +1,5 @@
 function result = run_sdpt3_instance(instance_path, varargin)
-%RUN_SDPT3_INSTANCE Ejecuta una instancia .dat-s con SDPT3 y devuelve struct.
+%RUN_SDPT3_INSTANCE Ejecuta una instancia .dat-s o .mat con SDPT3.
 %
 % result fields esperados:
 %   status, obj_val, gap, pinfeas, dinfeas, runtime, iterations,
@@ -41,8 +41,30 @@ function result = run_sdpt3_instance(instance_path, varargin)
             fprintf('Leyendo instancia: %s\n', instance_path);
         end
 
-        % Ajusta esto si tu repo usa read_sdpa / fromsdpa / otro lector.
-        [blk, At, C, b] = read_sdpa(instance_path);
+        [~, ~, ext] = fileparts(instance_path);
+        if strcmpi(ext, '.mat')
+            data = load(instance_path);
+
+            if isfield(data, 'At')
+                sedumi_matrix = data.At;
+            elseif isfield(data, 'A')
+                sedumi_matrix = data.A;
+            else
+                error('MAT file must contain A or At.');
+            end
+
+            if isfield(data, 'c')
+                c = data.c;
+            elseif isfield(data, 'C')
+                c = data.C;
+            else
+                error('MAT file must contain c or C.');
+            end
+
+            [blk, At, C, b] = read_sedumi(sedumi_matrix, data.b, c, data.K);
+        else
+            [blk, At, C, b] = read_sdpa(instance_path);
+        end
 
         OPTIONS = sqlparameters;
         OPTIONS.maxit = opts.max_iterations;

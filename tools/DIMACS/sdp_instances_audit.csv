@@ -1,0 +1,25 @@
+path,family,official_description,extension,size_bytes,is_instance,is_sdp,kind,reason,conversion_note
+BISECT/bm1.mat,BISECT,Min bisection problems from circuit partitioning,.mat,13230744,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with genbisect.m/vec.m when available.
+COPOS/copo14.mat,COPOS,Checking a sufficient condition for copositivity of a matrix,.mat,58776,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SeDuMi SDP instances.
+COPOS/copo23.mat,COPOS,Checking a sufficient condition for copositivity of a matrix,.mat,260632,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SeDuMi SDP instances.
+COPOS/copo68.mat,COPOS,Checking a sufficient condition for copositivity of a matrix,.mat,6781160,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SeDuMi SDP instances.
+FAP/fap09.mat,FAP,Min k-uncut problems from frequency assignment,.mat,1292816,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with genfap.m when available; fap36 has no .mat listed upstream.
+FAP/fap25.mat,FAP,Min k-uncut problems from frequency assignment,.mat,196991840,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with genfap.m when available; fap36 has no .mat listed upstream.
+FAP/fap36.mat,FAP,Min k-uncut problems from frequency assignment,.mat,100909354,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with genfap.m when available; fap36 has no .mat listed upstream.
+FILTER/filter48_socp.mat,FILTER,Mixed SDP/SOCP problems from PAM filter design,.mat,580808,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Mixed cone SeDuMi models; SDP status depends on K.s.
+FILTER/filtinf1.mat,FILTER,Mixed SDP/SOCP problems from PAM filter design,.mat,598056,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Mixed cone SeDuMi models; SDP status depends on K.s.
+FILTER/minphase.mat,FILTER,Mixed SDP/SOCP problems from PAM filter design,.mat,29168,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Mixed cone SeDuMi models; SDP status depends on K.s.
+HAMMING/hamming_10_2.mat,HAMMING,Theta function instances of Hamming graphs,.mat,10445320,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SDP instances; generate_hamming.m can create more.
+HAMMING/hamming_11_2.mat,HAMMING,Theta function instances of Hamming graphs,.mat,41841160,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SDP instances; generate_hamming.m can create more.
+HAMMING/hamming_7_5_6.mat,HAMMING,Theta function instances of Hamming graphs,.mat,161416,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SDP instances; generate_hamming.m can create more.
+HAMMING/hamming_8_3_4.mat,HAMMING,Theta function instances of Hamming graphs,.mat,624904,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SDP instances; generate_hamming.m can create more.
+HAMMING/hamming_9_5_6.mat,HAMMING,Theta function instances of Hamming graphs,.mat,2517000,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SDP instances; generate_hamming.m can create more.
+HAMMING/hamming_9_8.mat,HAMMING,Theta function instances of Hamming graphs,.mat,2619912,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SDP instances; generate_hamming.m can create more.
+HINF/hinf12.mat,HINF,LMI problems,.mat,76704,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,LMI models are SDP instances.
+HINF/hinf13.mat,HINF,LMI problems,.mat,151952,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,LMI models are SDP instances.
+TORUS/torusg3-15.mat,TORUS,Max-cut problems from the Ising model of spin glasses,.mat,136708488,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with gentorus.m when available.
+TORUS/torusg3-8.mat,TORUS,Max-cut problems from the Ising model of spin glasses,.mat,3149536,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with gentorus.m when available.
+TORUS/toruspm3-15-50.mat,TORUS,Max-cut problems from the Ising model of spin glasses,.mat,136708488,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with gentorus.m when available.
+TORUS/toruspm3-8-50.mat,TORUS,Max-cut problems from the Ising model of spin glasses,.mat,3149536,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Raw .dat graph files can be converted with gentorus.m when available.
+TRUSS/truss5.mat,TRUSS,Truss topology design problems,.mat,82544,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SeDuMi SDP instances.
+TRUSS/truss8.mat,TRUSS,Truss topology design problems,.mat,255360,true,true,sedumi-mat,contains SeDuMi K.s semidefinite cone,Distributed as SeDuMi SDP instances.

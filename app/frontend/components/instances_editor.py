@@ -67,6 +67,10 @@ class InstanceSection(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(8)
+
         title = QLabel(section_name)
         title.setStyleSheet("""
             color: #f3f3f3;
@@ -74,13 +78,40 @@ class InstanceSection(QWidget):
             font-weight: 700;
         """)
 
+        self.select_all_button = QPushButton("Select all")
+        self.clear_all_button = QPushButton("Clear")
+        for button in (self.select_all_button, self.clear_all_button):
+            button.setFixedHeight(30)
+            button.setStyleSheet("""
+                QPushButton {
+                    background-color: #252526;
+                    color: #f3f3f3;
+                    border: 1px solid #3a3a3a;
+                    border-radius: 6px;
+                    padding: 4px 10px;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+                QPushButton:hover {
+                    background-color: #2d2d30;
+                }
+            """)
+
+        self.select_all_button.clicked.connect(self.select_all)
+        self.clear_all_button.clicked.connect(self.clear_all)
+
+        title_row.addWidget(title)
+        title_row.addStretch()
+        title_row.addWidget(self.select_all_button)
+        title_row.addWidget(self.clear_all_button)
+
         separator = QFrame()
         separator.setFixedHeight(1)
         separator.setStyleSheet("""
             background-color: #3a3a3a;
         """)
 
-        layout.addWidget(title)
+        layout.addLayout(title_row)
         layout.addWidget(separator)
 
         for instance_name in instances:
@@ -92,6 +123,14 @@ class InstanceSection(QWidget):
 
     def get_checked_instances(self) -> list[str]:
         return [row.instance_name for row in self.rows if row.checkbox.isChecked()]
+
+    def select_all(self) -> None:
+        for row in self.rows:
+            row.checkbox.setChecked(True)
+
+    def clear_all(self) -> None:
+        for row in self.rows:
+            row.checkbox.setChecked(False)
 
 
 class InstancesEditor(QWidget):

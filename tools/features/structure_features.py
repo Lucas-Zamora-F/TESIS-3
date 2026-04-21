@@ -4,6 +4,8 @@ import math
 from pathlib import Path
 from typing import Any
 
+from tools.features.instance_reader import instance_display_name, read_problem_data
+
 
 def _is_comment_or_empty(line: str) -> bool:
     stripped = line.strip()
@@ -130,7 +132,7 @@ def _entropy_from_sizes(sizes: list[int]) -> float | None:
 
 def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
     """
-    Extrae features de estructura del problema desde un archivo .dat-s.
+    Extrae features de estructura del problema desde un archivo .dat-s o .mat SeDuMi.
 
     Estas features se basan en la organización por bloques del problema,
     no en sparsity, scaling ni propiedades espectrales.
@@ -139,7 +141,9 @@ def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
     """
     instance_path = Path(instance_path)
 
-    _, n_blocks, block_sizes = _read_header_lines(instance_path)
+    problem = read_problem_data(instance_path, include_entries=False)
+    n_blocks = problem.n_blocks
+    block_sizes = problem.block_sizes
 
     abs_block_sizes = [abs(b) for b in block_sizes]
     positive_blocks = [b for b in block_sizes if b > 0]   # bloques SDP
@@ -217,7 +221,7 @@ def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
     )
 
     features = {
-        "Instance": instance_path.name,
+        "Instance": instance_display_name(instance_path),
 
         # tipo de estructura
         "feature_num_sdp_blocks": num_sdp_blocks,

@@ -1,39 +1,44 @@
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
 
+from tools.features.instance_reader import (
+    collect_supported_instances,
+    instance_display_name,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "sdplib"
+SDPLIB_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "sdplib"
+DIMACS_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "DIMACS" / "instances"
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT / "ISA metadata" / "intermediates" / "source_table.csv"
 )
 
 
-def _extract_source(instance_name: str) -> str:
+def _extract_source(instance_path: Path) -> str:
     """
-    Extract the source name from the instance file name.
-
-    Examples
-    --------
-    arch0.dat-s -> arch
-    beas2.dat-s -> beas
-
-    Rule
-    ----
-    Take everything before the first digit.
+    Classify the source dataset for an instance.
     """
-    match = re.match(r"^([^\d]+)", instance_name)
+    resolved_path = instance_path.resolve()
 
-    if not match:
-        raise ValueError(f"Could not extract source from instance name: {instance_name}")
+    try:
+        resolved_path.relative_to(SDPLIB_INSTANCES_DIR.resolve())
+        return "SDPLIB"
+    except ValueError:
+        pass
 
-    return match.group(1)
+    try:
+        resolved_path.relative_to(DIMACS_INSTANCES_DIR.resolve())
+        return "DIMACS"
+    except ValueError:
+        pass
+
+    raise ValueError(f"Could not classify source dataset for instance: {instance_path}")
 
 
 def _normalize_instances(
@@ -41,7 +46,7 @@ def _normalize_instances(
 ) -> list[Path]:
     """
     Accept:
-    - a directory containing .dat-s files
+    - a directory containing supported instance files (.dat-s, .mat)
     - a single instance file path
     - an iterable of instance file paths
     """
@@ -49,10 +54,10 @@ def _normalize_instances(
         instances_path = Path(instances)
 
         if instances_path.is_dir():
-            instance_paths = sorted(instances_path.glob("*.dat-s"))
+            instance_paths = collect_supported_instances(instances_path)
             if not instance_paths:
                 raise FileNotFoundError(
-                    f"No .dat-s files were found in: {instances_path}"
+                    f"No supported instance files were found in: {instances_path}"
                 )
             return instance_paths
 
@@ -83,8 +88,8 @@ def build_source_table(
 
     | Instance    | Source |
     |-------------|--------|
-    | arch0.dat-s | arch   |
-    | arch2.dat-s | arch   |
+    | arch0.dat-s      | SDPLIB |
+    | BISECT/bm1.mat   | DIMACS |
 
     The resulting dataframe is also saved to:
         ISA metadata/intermediates/source_table.csv
@@ -96,8 +101,8 @@ def build_source_table(
     rows: list[dict[str, str]] = []
 
     for instance_path in instance_paths:
-        instance_name = instance_path.name
-        source = _extract_source(instance_name)
+        instance_name = instance_display_name(instance_path)
+        source = _extract_source(instance_path)
 
         rows.append(
             {
