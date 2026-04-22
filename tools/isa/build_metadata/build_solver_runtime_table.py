@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -143,6 +144,13 @@ def _normalize_instance_paths(instance_paths: Iterable[str | Path]) -> list[Path
     return normalized_instances
 
 
+def _clear_solver_sandbox_logs() -> None:
+    sandbox = PROJECT_ROOT / "sandbox"
+    for logs_dir in (sandbox / "sdpt3_logs_v2", sandbox / "sedumi_logs_v2"):
+        if logs_dir.exists():
+            shutil.rmtree(logs_dir)
+
+
 def build_solver_runtime_table(
     instance_paths: Iterable[str | Path],
     registry_path: str | Path = DEFAULT_REGISTRY_PATH,
@@ -151,6 +159,8 @@ def build_solver_runtime_table(
 
     registry_path = Path(registry_path)
     solver_config_path = Path(solver_config_path)
+
+    _clear_solver_sandbox_logs()
 
     enabled_solver_info = load_enabled_solvers(registry_path)
     normalized_instances = _normalize_instance_paths(instance_paths)

@@ -22,7 +22,7 @@ class SplashScreen(QSplashScreen):
     def __init__(self) -> None:
         logo_path = get_resource_path("app/frontend/assets/sdisg_logo.png")
 
-        # Crear canvas con fondo sólido
+        # Create canvas with solid background
         canvas = QPixmap(700, 400)
         canvas.fill(QColor("#0f172a"))
 
@@ -34,7 +34,7 @@ class SplashScreen(QSplashScreen):
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
-            # Centrar el logo sobre el fondo
+            # Center logo on the canvas
             painter = QPainter(canvas)
             x = (700 - logo.width()) // 2
             y = (400 - logo.height()) // 2

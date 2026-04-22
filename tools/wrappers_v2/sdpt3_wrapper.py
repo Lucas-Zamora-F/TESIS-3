@@ -13,7 +13,7 @@ from tools.logging.universal_logger import (
 
 class SDPT3Wrapper:
     """
-    Wrapper v2 para SDPT3 usando MatlabRunner + logger universal.
+    Wrapper v2 for SDPT3 using MatlabRunner + universal logger.
     """
 
     SOLVER_NAME = "sdpt3"
@@ -38,7 +38,7 @@ class SDPT3Wrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Inicializando SDPT3Wrapper v2",
+            "Initializing SDPT3Wrapper v2",
             extra={
                 "run_id": self.run_id,
                 "project_root": self.project_root,
@@ -68,7 +68,7 @@ class SDPT3Wrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Configuración cargada para SDPT3Wrapper v2",
+            "Configuration loaded for SDPT3Wrapper v2",
             extra={
                 "target_tol": self.target_tol,
                 "max_iterations": self.max_iterations,
@@ -94,7 +94,7 @@ class SDPT3Wrapper:
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Entorno MATLAB preparado correctamente",
+                "MATLAB environment prepared successfully",
                 extra={
                     "startup_paths": [
                         self.sdpt3_repo,
@@ -105,7 +105,7 @@ class SDPT3Wrapper:
         except Exception as exc:
             log_exception(
                 self.SOLVER_NAME,
-                "Fallo preparando entorno MATLAB para SDPT3",
+                "Failed to prepare MATLAB environment for SDPT3",
                 exc,
                 extra={
                     "sdpt3_repo": self.sdpt3_repo,
@@ -116,7 +116,7 @@ class SDPT3Wrapper:
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         if not os.path.exists(path):
-            raise FileNotFoundError(f"No se encontró el archivo de configuración: {path}")
+            raise FileNotFoundError(f"Configuration file not found: {path}")
 
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -125,7 +125,7 @@ class SDPT3Wrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Agregando paths al entorno MATLAB",
+            "Adding paths to MATLAB environment",
             extra={
                 "recursive_paths": [
                     self.sdpt3_repo,
@@ -141,24 +141,24 @@ class SDPT3Wrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Verificación de disponibilidad de sqlp",
+            "Checking availability of sqlp",
             extra={"eval_result": sqlp_exists},
         )
 
         if not sqlp_exists["ok"] or int(sqlp_exists["result"]) == 0:
-            raise RuntimeError("SDPT3 no disponible: MATLAB no encuentra 'sqlp'.")
+            raise RuntimeError("SDPT3 not available: MATLAB cannot find 'sqlp'.")
 
         helper_exists = self.runner.eval("exist('run_sdpt3_instance','file')", nargout=1)
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Verificación de disponibilidad de run_sdpt3_instance",
+            "Checking availability of run_sdpt3_instance",
             extra={"eval_result": helper_exists},
         )
 
         if not helper_exists["ok"] or int(helper_exists["result"]) == 0:
             raise RuntimeError(
-                "No se encontró 'run_sdpt3_instance.m' en tools/matlab/sdpt3."
+                "'run_sdpt3_instance.m' not found in tools/matlab/sdpt3."
             )
 
     def _matlab_str(self, value: str) -> str:
@@ -227,7 +227,7 @@ class SDPT3Wrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Resultado normalizado de SDPT3",
+            "Normalized SDPT3 result",
             extra=normalized,
         )
 
@@ -236,7 +236,7 @@ class SDPT3Wrapper:
     def solve(self, instance_path: str) -> Dict[str, Any]:
         instance_path = os.path.abspath(instance_path)
         if not os.path.isfile(instance_path):
-            raise FileNotFoundError(f"No existe la instancia: {instance_path}")
+            raise FileNotFoundError(f"Instance file not found: {instance_path}")
 
         instance_name = os.path.basename(instance_path)
         instance_path_matlab = self._matlab_str(instance_path)
@@ -263,7 +263,7 @@ result = run_sdpt3_instance( ...
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Iniciando resolución de instancia con SDPT3",
+            "Starting instance solve with SDPT3",
             extra={
                 "instance": instance_name,
                 "instance_path": instance_path,
@@ -277,7 +277,7 @@ result = run_sdpt3_instance( ...
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Comando MATLAB enviado a SDPT3",
+            "MATLAB command sent to SDPT3",
             extra={
                 "instance": instance_name,
                 "command": cmd.strip(),
@@ -290,7 +290,7 @@ result = run_sdpt3_instance( ...
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Respuesta de ejecución MATLAB recibida",
+                "MATLAB execution response received",
                 extra={
                     "instance": instance_name,
                     "exec_ok": exec_res.get("ok"),
@@ -310,7 +310,7 @@ result = run_sdpt3_instance( ...
                 log_event(
                     "ERROR",
                     self.SOLVER_NAME,
-                    "Fallo al ejecutar comando MATLAB para SDPT3",
+                    "Failed to execute MATLAB command for SDPT3",
                     extra=out,
                 )
                 return out
@@ -320,7 +320,7 @@ result = run_sdpt3_instance( ...
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Resultado bruto solicitado desde MATLAB",
+                "Raw result fetched from MATLAB",
                 extra={
                     "instance": instance_name,
                     "fetch_ok": fetch_res.get("ok"),
@@ -339,7 +339,7 @@ result = run_sdpt3_instance( ...
                 log_event(
                     "ERROR",
                     self.SOLVER_NAME,
-                    "No se pudo recuperar 'result' desde MATLAB",
+                    "Could not retrieve 'result' from MATLAB workspace",
                     extra=out,
                 )
                 return out
@@ -349,7 +349,7 @@ result = run_sdpt3_instance( ...
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Resultado bruto recuperado desde MATLAB",
+                "Raw result retrieved from MATLAB",
                 extra={
                     "instance": instance_name,
                     "raw_type": str(type(raw)),
@@ -361,14 +361,14 @@ result = run_sdpt3_instance( ...
                 out = {
                     "instance": instance_name,
                     "status": "FAILED",
-                    "error": f"Formato inesperado: {type(raw)}",
+                    "error": f"Unexpected result format: {type(raw)}",
                     "log_file": log_path,
                 }
 
                 log_event(
                     "ERROR",
                     self.SOLVER_NAME,
-                    "Formato inesperado del resultado devuelto por MATLAB",
+                    "Unexpected result format returned by MATLAB",
                     extra=out,
                 )
                 return out
@@ -380,7 +380,7 @@ result = run_sdpt3_instance( ...
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Instancia resuelta y procesada correctamente",
+                "Instance solved and processed successfully",
                 extra=out,
             )
 
@@ -389,7 +389,7 @@ result = run_sdpt3_instance( ...
         except Exception as exc:
             log_exception(
                 self.SOLVER_NAME,
-                "Excepción no controlada durante solve() de SDPT3",
+                "Unhandled exception during SDPT3 solve()",
                 exc,
                 extra={
                     "instance": instance_name,
@@ -412,20 +412,20 @@ result = run_sdpt3_instance( ...
                 log_event(
                     "INFO",
                     self.SOLVER_NAME,
-                    "Cerrando MatlabRunner de SDPT3Wrapper",
+                    "Closing MatlabRunner for SDPT3Wrapper",
                     extra={"run_id": self.run_id},
                 )
                 self.runner.stop()
                 log_event(
                     "INFO",
                     self.SOLVER_NAME,
-                    "MatlabRunner cerrado correctamente",
+                    "MatlabRunner closed successfully",
                     extra={"run_id": self.run_id},
                 )
             except Exception as exc:
                 log_exception(
                     self.SOLVER_NAME,
-                    "Error al cerrar MatlabRunner",
+                    "Error closing MatlabRunner",
                     exc,
                     extra={"run_id": self.run_id},
                 )

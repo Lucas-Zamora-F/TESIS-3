@@ -13,13 +13,12 @@ from tools.logging.universal_logger import (
 
 class SeDuMiWrapper:
     """
-    Wrapper v2 para SeDuMi usando MatlabRunner, pero con la lógica
-    numérica del wrapper antiguo + logger universal.
+    Wrapper v2 for SeDuMi using MatlabRunner and the universal logger.
 
-    Requiere:
+    Requires:
     - tools/runners/matlab_runner.py
     - tools/matlab/sedumi/run_sedumi_instance.m
-    - extern/sedumi disponible
+    - extern/sedumi available
     """
 
     SOLVER_NAME = "sedumi"
@@ -44,7 +43,7 @@ class SeDuMiWrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Inicializando SeDuMiWrapper v2",
+            "Initializing SeDuMiWrapper v2",
             extra={
                 "run_id": self.run_id,
                 "project_root": self.project_root,
@@ -77,7 +76,7 @@ class SeDuMiWrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Configuración cargada para SeDuMiWrapper v2",
+            "Configuration loaded for SeDuMiWrapper v2",
             extra={
                 "target_tol": self.target_tol,
                 "max_iterations": self.max_iterations,
@@ -106,7 +105,7 @@ class SeDuMiWrapper:
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Entorno MATLAB preparado correctamente para SeDuMi",
+                "MATLAB environment prepared successfully for SeDuMi",
                 extra={
                     "startup_paths": [
                         self.sedumi_repo,
@@ -117,7 +116,7 @@ class SeDuMiWrapper:
         except Exception as exc:
             log_exception(
                 self.SOLVER_NAME,
-                "Fallo preparando entorno MATLAB para SeDuMi",
+                "Failed to prepare MATLAB environment for SeDuMi",
                 exc,
                 extra={
                     "sedumi_repo": self.sedumi_repo,
@@ -128,7 +127,7 @@ class SeDuMiWrapper:
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         if not os.path.exists(path):
-            raise FileNotFoundError(f"No se encontró el archivo de configuración: {path}")
+            raise FileNotFoundError(f"Configuration file not found: {path}")
 
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -137,7 +136,7 @@ class SeDuMiWrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Agregando paths al entorno MATLAB para SeDuMi",
+            "Adding paths to MATLAB environment for SeDuMi",
             extra={
                 "recursive_paths": [
                     self.sedumi_repo,
@@ -153,42 +152,42 @@ class SeDuMiWrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Verificación de disponibilidad de sedumi",
+            "Checking availability of sedumi",
             extra={"eval_result": sedumi_exists},
         )
         if not sedumi_exists["ok"] or int(sedumi_exists["result"]) == 0:
-            raise RuntimeError("SeDuMi no disponible: MATLAB no encuentra 'sedumi'.")
+            raise RuntimeError("SeDuMi not available: MATLAB cannot find 'sedumi'.")
 
         fromsdpa_exists = self.runner.eval("exist('fromsdpa','file')", nargout=1)
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Verificación de disponibilidad de fromsdpa",
+            "Checking availability of fromsdpa",
             extra={"eval_result": fromsdpa_exists},
         )
         if not fromsdpa_exists["ok"] or int(fromsdpa_exists["result"]) == 0:
-            raise RuntimeError("MATLAB no encuentra 'fromsdpa' para leer instancias .dat-s.")
+            raise RuntimeError("MATLAB cannot find 'fromsdpa' for reading .dat-s instances.")
 
         eigk_exists = self.runner.eval("exist('eigK','file')", nargout=1)
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Verificación de disponibilidad de eigK",
+            "Checking availability of eigK",
             extra={"eval_result": eigk_exists},
         )
         if not eigk_exists["ok"] or int(eigk_exists["result"]) == 0:
-            raise RuntimeError("MATLAB no encuentra 'eigK', necesario para el cálculo de dinfeas.")
+            raise RuntimeError("MATLAB cannot find 'eigK', required for dinfeas computation.")
 
         helper_exists = self.runner.eval("exist('run_sedumi_instance','file')", nargout=1)
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Verificación de disponibilidad de run_sedumi_instance",
+            "Checking availability of run_sedumi_instance",
             extra={"eval_result": helper_exists},
         )
         if not helper_exists["ok"] or int(helper_exists["result"]) == 0:
             raise RuntimeError(
-                "No se encontró 'run_sedumi_instance.m' en tools/matlab/sedumi."
+                "'run_sedumi_instance.m' not found in tools/matlab/sedumi."
             )
 
     def _safe_float(self, x: Any, default=float("nan")) -> float:
@@ -258,7 +257,7 @@ class SeDuMiWrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Resultado normalizado de SeDuMi",
+            "Normalized SeDuMi result",
             extra=normalized,
         )
 
@@ -267,7 +266,7 @@ class SeDuMiWrapper:
     def solve(self, instance_path: str) -> Dict[str, Any]:
         instance_path = os.path.abspath(instance_path)
         if not os.path.isfile(instance_path):
-            raise FileNotFoundError(f"No existe la instancia: {instance_path}")
+            raise FileNotFoundError(f"Instance file not found: {instance_path}")
 
         instance_name = os.path.basename(instance_path)
         log_path = os.path.join(
@@ -281,7 +280,7 @@ class SeDuMiWrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Iniciando resolución de instancia con SeDuMi",
+            "Starting instance solve with SeDuMi",
             extra={
                 "instance": instance_name,
                 "instance_path": instance_path,
@@ -295,7 +294,7 @@ class SeDuMiWrapper:
         log_event(
             "INFO",
             self.SOLVER_NAME,
-            "Argumentos enviados a run_sedumi_instance",
+            "Arguments sent to run_sedumi_instance",
             extra={
                 "instance": instance_name,
                 "function": "run_sedumi_instance",
@@ -335,7 +334,7 @@ class SeDuMiWrapper:
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Respuesta de ejecución MATLAB recibida para SeDuMi",
+                "MATLAB execution response received for SeDuMi",
                 extra={
                     "instance": instance_name,
                     "exec_ok": exec_res.get("ok"),
@@ -368,7 +367,7 @@ class SeDuMiWrapper:
                 log_event(
                     "ERROR",
                     self.SOLVER_NAME,
-                    "Fallo al ejecutar run_sedumi_instance",
+                    "Failed to execute run_sedumi_instance",
                     extra=out,
                 )
                 return out
@@ -378,7 +377,7 @@ class SeDuMiWrapper:
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Resultado bruto recuperado desde SeDuMi",
+                "Raw result retrieved from SeDuMi",
                 extra={
                     "instance": instance_name,
                     "raw_type": str(type(raw)),
@@ -402,7 +401,7 @@ class SeDuMiWrapper:
                     "pinf": float("nan"),
                     "dinf": float("nan"),
                     "feasratio": float("nan"),
-                    "error": f"Formato MATLAB inesperado: {type(raw)}",
+                    "error": f"Unexpected MATLAB result format: {type(raw)}",
                     "log_file": log_path,
                     "run_id": self.run_id,
                 }
@@ -410,7 +409,7 @@ class SeDuMiWrapper:
                 log_event(
                     "ERROR",
                     self.SOLVER_NAME,
-                    "Formato inesperado del resultado devuelto por SeDuMi",
+                    "Unexpected result format returned by SeDuMi",
                     extra=out,
                 )
                 return out
@@ -422,7 +421,7 @@ class SeDuMiWrapper:
             log_event(
                 "INFO",
                 self.SOLVER_NAME,
-                "Instancia resuelta y procesada correctamente con SeDuMi",
+                "Instance solved and processed successfully with SeDuMi",
                 extra=out,
             )
 
@@ -431,7 +430,7 @@ class SeDuMiWrapper:
         except Exception as exc:
             log_exception(
                 self.SOLVER_NAME,
-                "Excepción no controlada durante solve() de SeDuMi",
+                "Unhandled exception during SeDuMi solve()",
                 exc,
                 extra={
                     "instance": instance_name,
@@ -465,20 +464,20 @@ class SeDuMiWrapper:
                 log_event(
                     "INFO",
                     self.SOLVER_NAME,
-                    "Cerrando MatlabRunner de SeDuMiWrapper",
+                    "Closing MatlabRunner for SeDuMiWrapper",
                     extra={"run_id": self.run_id},
                 )
                 self.runner.stop()
                 log_event(
                     "INFO",
                     self.SOLVER_NAME,
-                    "MatlabRunner cerrado correctamente para SeDuMi",
+                    "MatlabRunner closed successfully for SeDuMi",
                     extra={"run_id": self.run_id},
                 )
             except Exception as exc:
                 log_exception(
                     self.SOLVER_NAME,
-                    "Error al cerrar MatlabRunner de SeDuMi",
+                    "Error closing MatlabRunner for SeDuMi",
                     exc,
                     extra={"run_id": self.run_id},
                 )

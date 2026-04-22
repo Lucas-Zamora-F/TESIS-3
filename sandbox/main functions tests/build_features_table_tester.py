@@ -26,15 +26,15 @@ def main() -> None:
     print("BUILD FEATURES TABLE TESTER")
     print("=" * 80)
     print(f"[INFO] PROJECT_ROOT: {PROJECT_ROOT}")
-    print("[INFO] Instancias objetivo:")
+    print("[INFO] Target instances:")
     for instance in instances:
         print(f"  - {instance}")
-    print(f"[INFO] Config de features: {config_path}")
+    print(f"[INFO] Features config: {config_path}")
     print()
 
     if not config_path.exists():
         raise FileNotFoundError(
-            f"No existe el archivo de configuración de features: {config_path}"
+            f"Features configuration file not found: {config_path}"
         )
 
     df = build_features_table(
@@ -43,11 +43,11 @@ def main() -> None:
     )
 
     print("=" * 80)
-    print("DATAFRAME RESULTANTE")
+    print("RESULTING DATAFRAME")
     print("=" * 80)
 
     if df.empty:
-        print("[INFO] El dataframe resultante está vacío.")
+        print("[INFO] The resulting dataframe is empty.")
     else:
         print(df.to_string(index=False))
 

@@ -509,9 +509,10 @@ class ExplorePage(QWidget):
         if px.isNull():
             label.setText("Could not load image")
             return
+        w = label.width() if label.width() > 50 else 700
+        h = label.height() if label.height() > 50 else 500
         scaled = px.scaled(
-            label.width() or 700,
-            label.height() or 320,
+            w, h,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
@@ -591,39 +592,40 @@ class ExplorePage(QWidget):
                     cb.ax.yaxis.set_tick_params(color="#a8a8a8")
                     plt.setp(cb.ax.yaxis.get_ticklabels(), color="#a8a8a8", fontsize=8)
 
-                    # difficulty direction arrow
+                    # difficulty direction arrow — spans across the IS space
                     med = np.median(diff)
                     easy_m, hard_m = diff >= med, diff < med
                     if easy_m.sum() > 1 and hard_m.sum() > 1:
                         ec = np.array([z1[easy_m].mean(), z2[easy_m].mean()])
                         hc = np.array([z1[hard_m].mean(), z2[hard_m].mean()])
+                        direction = hc - ec
+                        norm = np.linalg.norm(direction) + 1e-12
+                        direction = direction / norm
+
+                        # anchor the arrow at the plot centre and extend it
+                        cx = (z1.min() + z1.max()) / 2
+                        cy = (z2.min() + z2.max()) / 2
+                        span = 0.30 * max(z1.max() - z1.min(),
+                                          z2.max() - z2.min(), 1.0)
+                        arrow_start = np.array([cx, cy]) - direction * span
+                        arrow_end   = np.array([cx, cy]) + direction * span
+
                         ax.annotate(
-                            "", xy=hc, xytext=ec,
+                            "", xy=arrow_end, xytext=arrow_start,
                             arrowprops=dict(arrowstyle="-|>", color="#ff6b6b",
-                                            lw=2.2, mutation_scale=16),
+                                            lw=2.5, mutation_scale=20),
                             zorder=6,
                         )
-                        mid = (ec + hc) / 2
-                        perp = np.array([-(hc-ec)[1], (hc-ec)[0]])
-                        perp = perp / (np.linalg.norm(perp) + 1e-12) * 0.12
-                        ax.text(mid[0]+perp[0], mid[1]+perp[1],
-                                "harder", color="#ff6b6b", fontsize=8,
+                        ax.text(*arrow_start, "Easy",
+                                color="#4fc1ff", fontsize=8, fontweight="bold",
                                 ha="center", va="center", zorder=7,
-                                fontweight="bold")
-
-                    # targets
-                    if targets_csv.exists():
-                        t = pd.read_csv(targets_csv)
-                        t.columns = [c.strip() for c in t.columns]
-                        tz1 = next((c for c in t.columns if c.lower() in ("z_1","z1")), None)
-                        tz2 = next((c for c in t.columns if c.lower() in ("z_2","z2")), None)
-                        if tz1 and tz2:
-                            ax.scatter(t[tz1], t[tz2], marker="*", s=180,
-                                       color="#f0c040", zorder=5,
-                                       edgecolors="white", linewidths=0.5,
-                                       label="Empty-space targets")
-                            ax.legend(fontsize=8, facecolor="#2d2d30",
-                                      edgecolor="#3a3a3a", labelcolor="#f3f3f3")
+                                bbox=dict(facecolor=BG, edgecolor="none",
+                                          alpha=0.75, pad=2))
+                        ax.text(*arrow_end, "Hard",
+                                color="#ff6b6b", fontsize=8, fontweight="bold",
+                                ha="center", va="center", zorder=7,
+                                bbox=dict(facecolor=BG, edgecolor="none",
+                                          alpha=0.75, pad=2))
 
                     ax.set_xlabel("z₁", color="#a8a8a8", fontsize=10)
                     ax.set_ylabel("z₂", color="#a8a8a8", fontsize=10)
@@ -688,29 +690,34 @@ class ExplorePage(QWidget):
                 n = len(corr)
                 col_labels = [_abbrev(c) for c in corr.columns]
 
-                fig, ax = plt.subplots(figsize=(5.5, 4.8))
+                # scale figure to number of features so labels never get cramped
+                cell_size = max(0.52, 5.5 / max(n, 1))
+                fig_side = max(5.5, cell_size * n + 1.5)
+                fig, ax = plt.subplots(figsize=(fig_side, fig_side))
                 _dark_ax(ax, fig)
                 ax.grid(False)
                 im = ax.imshow(corr.values, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
-                cb = fig.colorbar(im, ax=ax, fraction=0.038, pad=0.02)
+                cb = fig.colorbar(im, ax=ax, fraction=0.038, pad=0.04)
                 cb.set_label("Pearson r", color="#a8a8a8", fontsize=9)
                 cb.ax.yaxis.set_tick_params(color="#a8a8a8")
                 plt.setp(cb.ax.yaxis.get_ticklabels(), color="#a8a8a8", fontsize=8)
                 ax.set_xticks(range(n))
                 ax.set_yticks(range(n))
+                lbl_fs = max(5.5, min(8, 60 / max(n, 1)))
                 ax.set_xticklabels(col_labels, rotation=45, ha="right",
-                                   color="#d4d4d4", fontsize=7)
-                ax.set_yticklabels(col_labels, color="#d4d4d4", fontsize=7)
-                for i in range(n):
-                    for j in range(n):
-                        v = corr.values[i, j]
-                        txt_color = "white" if abs(v) > 0.65 else "#999999"
-                        ax.text(j, i, f"{v:.2f}", ha="center", va="center",
-                                fontsize=5.5, color=txt_color)
+                                   color="#d4d4d4", fontsize=lbl_fs)
+                ax.set_yticklabels(col_labels, color="#d4d4d4", fontsize=lbl_fs)
+                if n <= 12:
+                    val_fs = max(4.5, min(6.5, 55 / max(n, 1)))
+                    for i in range(n):
+                        for j in range(n):
+                            v = corr.values[i, j]
+                            txt_color = "white" if abs(v) > 0.65 else "#999999"
+                            ax.text(j, i, f"{v:.2f}", ha="center", va="center",
+                                    fontsize=val_fs, color=txt_color)
                 ax.set_title("Feature correlation matrix",
                              color="#f3f3f3", fontsize=11, fontweight="bold")
                 ax.tick_params(length=0)
-                fig.tight_layout()
                 fig.savefig(corr_path, dpi=110, bbox_inches="tight", facecolor=BG)
                 plt.close(fig)
                 p3 = corr_path
@@ -745,11 +752,13 @@ class ExplorePage(QWidget):
         diff_panel, self._rec_difficulty_lbl  = self._make_rec_chart_panel("Difficulty map")
         feat_panel, self._rec_features_lbl    = self._make_rec_chart_panel("Feature → z contribution")
         corr_panel, self._rec_correlation_lbl = self._make_rec_chart_panel("Feature correlations")
+        for panel in (diff_panel, feat_panel, corr_panel):
+            panel.setMinimumHeight(320)
 
         charts_row.addWidget(diff_panel, 1)
         charts_row.addWidget(feat_panel, 1)
         charts_row.addWidget(corr_panel, 1)
-        layout.addLayout(charts_row)
+        layout.addLayout(charts_row, 3)
 
         # ── summary text ──────────────────────────────────────────────────
         self.recommendations_text = QPlainTextEdit()

@@ -7,17 +7,16 @@ import matlab.engine
 
 class MatlabRunner:
     """
-    Runner reutilizable para ejecutar código MATLAB desde Python.
+    Reusable runner for executing MATLAB code from Python.
 
-    Responsabilidades:
-    - iniciar y cerrar MATLAB Engine
-    - agregar paths al entorno MATLAB
-    - ejecutar comandos MATLAB
-    - invocar funciones MATLAB
-    - capturar errores y medir tiempos
+    Responsibilities:
+    - start and stop the MATLAB Engine
+    - add paths to the MATLAB environment
+    - execute MATLAB commands
+    - invoke MATLAB functions
+    - capture errors and measure elapsed time
 
-    No hace parsing de resultados del solver.
-    Eso debe vivir en cada wrapper.
+    Does not parse solver results; that belongs in each wrapper.
     """
 
     def __init__(
@@ -32,9 +31,7 @@ class MatlabRunner:
             self.start()
 
     def start(self) -> None:
-        """
-        Inicia MATLAB Engine si no está iniciado.
-        """
+        """Start the MATLAB Engine if it is not already running."""
         if self.eng is not None:
             return
 
@@ -44,9 +41,7 @@ class MatlabRunner:
             self.add_paths(self.startup_paths)
 
     def stop(self) -> None:
-        """
-        Cierra MATLAB Engine si está activo.
-        """
+        """Stop the MATLAB Engine if it is active."""
         if self.eng is not None:
             try:
                 self.eng.quit()
@@ -66,20 +61,20 @@ class MatlabRunner:
 
     def add_path(self, path: str, recursive: bool = False) -> None:
         """
-        Agrega un path a MATLAB.
+        Add a path to the MATLAB environment.
 
         Parameters
         ----------
         path : str
-            Ruta a agregar.
+            Directory to add.
         recursive : bool
-            Si True, usa genpath(path).
+            If True, uses genpath(path) to include all subdirectories.
         """
         self._ensure_started()
 
         abs_path = os.path.abspath(path)
         if not os.path.isdir(abs_path):
-            raise NotADirectoryError(f"No existe el directorio MATLAB path: {abs_path}")
+            raise NotADirectoryError(f"Directory does not exist: {abs_path}")
 
         matlab_path = abs_path.replace("\\", "/")
 
@@ -89,9 +84,7 @@ class MatlabRunner:
             self.eng.addpath(matlab_path, nargout=0)
 
     def add_paths(self, paths: Iterable[str], recursive: bool = False) -> None:
-        """
-        Agrega múltiples paths a MATLAB.
-        """
+        """Add multiple paths to the MATLAB environment."""
         for path in paths:
             self.add_path(path, recursive=recursive)
 
@@ -102,7 +95,7 @@ class MatlabRunner:
         measure_time: bool = True,
     ) -> Dict[str, Any]:
         """
-        Ejecuta un comando MATLAB vía eval.
+        Execute a MATLAB command via eval.
 
         Returns
         -------
@@ -143,7 +136,7 @@ class MatlabRunner:
         measure_time: bool = True,
     ) -> Dict[str, Any]:
         """
-        Ejecuta una función MATLAB por nombre.
+        Execute a MATLAB function by name.
 
         Example
         -------
@@ -181,27 +174,20 @@ class MatlabRunner:
             }
 
     def set_variable(self, name: str, value: Any) -> None:
-        """
-        Define una variable en el workspace base de MATLAB.
-        """
+        """Set a variable in the MATLAB base workspace."""
         self._ensure_started()
         self.eng.workspace[name] = value
 
     def get_variable(self, name: str) -> Any:
-        """
-        Recupera una variable del workspace base de MATLAB.
-        """
+        """Retrieve a variable from the MATLAB base workspace."""
         self._ensure_started()
         return self.eng.workspace[name]
 
     def exists(self, name: str, kind: str = "file") -> int:
         """
-        Consulta exist(...) en MATLAB.
+        Call exist(...) in MATLAB.
 
-        kind típicos:
-        - "file"
-        - "var"
-        - "dir"
+        Common kind values: "file", "var", "dir".
         """
         self._ensure_started()
         return int(self.eng.exist(name, kind))
@@ -214,5 +200,5 @@ class MatlabRunner:
         self._ensure_started()
         abs_path = os.path.abspath(path)
         if not os.path.isdir(abs_path):
-            raise NotADirectoryError(f"No existe el directorio MATLAB cwd: {abs_path}")
+            raise NotADirectoryError(f"Directory does not exist: {abs_path}")
         self.eng.cd(abs_path.replace("\\", "/"), nargout=0)

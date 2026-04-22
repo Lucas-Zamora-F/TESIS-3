@@ -18,9 +18,9 @@ def _is_comment_or_empty(line: str) -> bool:
 
 def _clean_block_line(block_line: str) -> list[int]:
     """
-    Parsea la línea de block sizes de un archivo .dat-s (formato SDPA).
+    Parse the block sizes line from a .dat-s file (SDPA format).
 
-    Soporta variantes como:
+    Supports variants such as:
         {2, 3, -5}
         2 3 -5
         2, 3, -5
@@ -35,14 +35,14 @@ def _clean_block_line(block_line: str) -> list[int]:
     block_sizes = [int(tok) for tok in tokens]
 
     if not block_sizes:
-        raise ValueError("No se pudieron parsear los block sizes.")
+        raise ValueError("Failed to parse block sizes.")
 
     return block_sizes
 
 
 def _read_header_lines(instance_path: Path) -> tuple[int, int, list[int]]:
     """
-    Lee el header relevante de un archivo .dat-s:
+    Read the relevant header lines from a .dat-s file:
       1) m
       2) n_blocks
       3) block_sizes
@@ -59,30 +59,30 @@ def _read_header_lines(instance_path: Path) -> tuple[int, int, list[int]]:
 
     if len(relevant_lines) < 3:
         raise ValueError(
-            f"Header incompleto en {instance_path}. "
-            f"Se esperaban al menos 3 líneas relevantes."
+            f"Incomplete header in {instance_path}. "
+            f"Expected at least 3 relevant lines."
         )
 
     try:
         m = int(relevant_lines[0])
     except ValueError as e:
         raise ValueError(
-            f"No se pudo parsear m en {instance_path}: {relevant_lines[0]}"
+            f"Failed to parse m in {instance_path}: {relevant_lines[0]}"
         ) from e
 
     try:
         n_blocks = int(relevant_lines[1])
     except ValueError as e:
         raise ValueError(
-            f"No se pudo parsear n_blocks en {instance_path}: {relevant_lines[1]}"
+            f"Failed to parse n_blocks in {instance_path}: {relevant_lines[1]}"
         ) from e
 
     block_sizes = _clean_block_line(relevant_lines[2])
 
     if len(block_sizes) != n_blocks:
         raise ValueError(
-            f"Inconsistencia en {instance_path}: "
-            f"n_blocks={n_blocks}, pero se parsearon {len(block_sizes)} block sizes."
+            f"Inconsistency in {instance_path}: "
+            f"n_blocks={n_blocks}, but parsed {len(block_sizes)} block sizes."
         )
 
     return m, n_blocks, block_sizes
@@ -113,9 +113,7 @@ def _coefficient_of_variation(values: list[float]) -> float | None:
 
 
 def _entropy_from_sizes(sizes: list[int]) -> float | None:
-    """
-    Entropía de Shannon sobre la distribución relativa de tamaños de bloque.
-    """
+    """Shannon entropy of the relative block-size distribution."""
     if not sizes:
         return None
 
@@ -132,12 +130,12 @@ def _entropy_from_sizes(sizes: list[int]) -> float | None:
 
 def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
     """
-    Extrae features de estructura del problema desde un archivo .dat-s o .mat SeDuMi.
+    Extract structural features from a .dat-s or SeDuMi .mat instance.
 
-    Estas features se basan en la organización por bloques del problema,
-    no en sparsity, scaling ni propiedades espectrales.
+    These features describe the block organisation of the problem,
+    not sparsity, scaling, or spectral properties.
 
-    Retorna un diccionario listo para agregarse a una fila de DataFrame.
+    Returns a dictionary ready to be added as a DataFrame row.
     """
     instance_path = Path(instance_path)
 
@@ -146,8 +144,8 @@ def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
     block_sizes = problem.block_sizes
 
     abs_block_sizes = [abs(b) for b in block_sizes]
-    positive_blocks = [b for b in block_sizes if b > 0]   # bloques SDP
-    negative_blocks = [abs(b) for b in block_sizes if b < 0]  # bloques diagonales / LP
+    positive_blocks = [b for b in block_sizes if b > 0]   # SDP blocks
+    negative_blocks = [abs(b) for b in block_sizes if b < 0]  # diagonal / LP blocks
 
     n_total_matrix = sum(abs_block_sizes)
 
@@ -205,15 +203,12 @@ def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
 
     block_size_entropy = _entropy_from_sizes(abs_block_sizes)
 
-    # Índice simple de desbalance:
-    # mientras más cerca de 1, más dominante es el bloque más grande.
     block_dominance_ratio = (
         max_block_size / mean_abs_block_size
         if mean_abs_block_size not in (None, 0)
         else None
     )
 
-    # Cuánto del total está fuera del bloque más grande
     nonlargest_fraction = (
         1.0 - largest_block_fraction
         if largest_block_fraction is not None
@@ -223,7 +218,7 @@ def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
     features = {
         "Instance": instance_display_name(instance_path),
 
-        # tipo de estructura
+        # block type
         "feature_num_sdp_blocks": num_sdp_blocks,
         "feature_num_lp_like_blocks": num_lp_like_blocks,
         "feature_is_single_block": is_single_block,
@@ -233,24 +228,24 @@ def extract_structure_features(instance_path: str | Path) -> dict[str, Any]:
         "feature_is_pure_sdp": is_pure_sdp,
         "feature_is_mixed_sdp_lp": is_mixed_sdp_lp,
 
-        # composición por tamaño
+        # size composition
         "feature_sdp_total_size": sdp_total_size,
         "feature_lp_total_size": lp_total_size,
         "feature_sdp_size_fraction": sdp_size_fraction,
         "feature_lp_size_fraction": lp_size_fraction,
 
-        # balance / concentración
+        # balance / concentration
         "feature_largest_block_fraction": largest_block_fraction,
         "feature_smallest_block_fraction": smallest_block_fraction,
         "feature_nonlargest_fraction": nonlargest_fraction,
         "feature_block_dominance_ratio": block_dominance_ratio,
         "feature_block_size_entropy": block_size_entropy,
 
-        # dispersión
+        # spread
         "feature_block_size_range": block_size_range,
         "feature_cv_block_size": cv_abs_block_size,
 
-        # conteos estructurales
+        # structural counts
         "feature_num_singleton_blocks": num_singleton_blocks,
         "feature_singleton_block_fraction": singleton_block_fraction,
         "feature_num_large_blocks_ge_10": num_large_blocks_ge_10,

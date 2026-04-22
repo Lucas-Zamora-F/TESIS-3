@@ -1,7 +1,7 @@
 import sys
 import os
 
-# Si corre como ejecutable, apunta a la raíz de TESIS-3
+# When running as a frozen executable, resolve project root to TESIS-3
 if getattr(sys, 'frozen', False):
     project_root = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', '..'))
     os.chdir(project_root)

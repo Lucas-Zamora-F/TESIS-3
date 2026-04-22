@@ -10,7 +10,7 @@
       "mode": "build"
     },
     "solver_runtime_table": {
-      "mode": "csv"
+      "mode": "build"
     }
   },
   "output": {

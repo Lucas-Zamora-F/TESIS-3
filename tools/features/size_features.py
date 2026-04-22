@@ -18,8 +18,8 @@ def _is_comment_or_empty(line: str) -> bool:
 
 def _clean_block_line(block_line: str) -> list[int]:
     """
-    Parsea la línea de block sizes de un archivo .dat-s (formato SDPA).
-    Soporta variantes como:
+    Parse the block sizes line from a .dat-s file (SDPA format).
+    Supports variants such as:
         {2, 3, -5}
         2 3 -5
         2, 3, -5
@@ -27,7 +27,7 @@ def _clean_block_line(block_line: str) -> list[int]:
     """
     cleaned = block_line.strip()
 
-    # remover delimitadores comunes
+    # strip common delimiters
     cleaned = cleaned.replace("{", " ").replace("}", " ")
     cleaned = cleaned.replace("(", " ").replace(")", " ")
     cleaned = cleaned.replace(",", " ")
@@ -36,19 +36,19 @@ def _clean_block_line(block_line: str) -> list[int]:
     block_sizes = [int(tok) for tok in tokens]
 
     if not block_sizes:
-        raise ValueError("No se pudieron parsear los block sizes.")
+        raise ValueError("Failed to parse block sizes.")
 
     return block_sizes
 
 
 def _read_header_lines(instance_path: Path) -> tuple[int, int, list[int]]:
     """
-    Lee las primeras líneas relevantes de un .dat-s:
+    Read the first relevant header lines from a .dat-s file:
       1) m
       2) n_blocks
       3) block_sizes
 
-    Ignora líneas vacías y comentarios.
+    Skips empty lines and comment lines.
     """
     relevant_lines: list[str] = []
 
@@ -62,30 +62,30 @@ def _read_header_lines(instance_path: Path) -> tuple[int, int, list[int]]:
 
     if len(relevant_lines) < 3:
         raise ValueError(
-            f"Header incompleto en {instance_path}. "
-            f"Se esperaban al menos 3 líneas relevantes."
+            f"Incomplete header in {instance_path}. "
+            f"Expected at least 3 relevant lines."
         )
 
     try:
         m = int(relevant_lines[0])
     except ValueError as e:
         raise ValueError(
-            f"No se pudo parsear m en {instance_path}: {relevant_lines[0]}"
+            f"Failed to parse m in {instance_path}: {relevant_lines[0]}"
         ) from e
 
     try:
         n_blocks = int(relevant_lines[1])
     except ValueError as e:
         raise ValueError(
-            f"No se pudo parsear n_blocks en {instance_path}: {relevant_lines[1]}"
+            f"Failed to parse n_blocks in {instance_path}: {relevant_lines[1]}"
         ) from e
 
     block_sizes = _clean_block_line(relevant_lines[2])
 
     if len(block_sizes) != n_blocks:
         raise ValueError(
-            f"Inconsistencia en {instance_path}: "
-            f"n_blocks={n_blocks}, pero se parsearon {len(block_sizes)} block sizes."
+            f"Inconsistency in {instance_path}: "
+            f"n_blocks={n_blocks}, but parsed {len(block_sizes)} block sizes."
         )
 
     return m, n_blocks, block_sizes
@@ -93,9 +93,9 @@ def _read_header_lines(instance_path: Path) -> tuple[int, int, list[int]]:
 
 def extract_size_features(instance_path: str | Path) -> dict[str, Any]:
     """
-    Extrae size features desde una instancia .dat-s o .mat SeDuMi.
+    Extract size features from a .dat-s or SeDuMi .mat instance.
 
-    Retorna un diccionario listo para agregarse a una fila de DataFrame.
+    Returns a dictionary ready to be added as a DataFrame row.
     """
     instance_path = Path(instance_path)
 
@@ -149,7 +149,6 @@ def extract_size_features(instance_path: str | Path) -> dict[str, Any]:
         "feature_sum_negative_abs_blocks": sum_negative_abs_blocks,
         "feature_aspect_ratio_m_over_n": aspect_ratio_m_over_n,
         "feature_aspect_ratio_m_over_nsq": aspect_ratio_m_over_nsq,
-        # útil para inspección/debug
         "feature_block_sizes_raw": ";".join(str(b) for b in block_sizes),
     }
 

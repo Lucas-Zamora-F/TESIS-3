@@ -2,25 +2,25 @@
 """
 tools/installation/setup_env.py
 
-Prepara el entorno general del repositorio.
+Prepares the general environment for the repository.
 
-Responsabilidades:
-- Verificar estructura base del repo.
-- Sincronizar y descargar todos los submódulos declarados en .gitmodules.
-- Verificar e instalar dependencias Python necesarias.
-- Iniciar MATLAB Engine.
-- Verificar productos MATLAB requeridos por el repositorio.
-- Agregar al path de MATLAB las carpetas relevantes del proyecto.
-- Ejecutar instaladores de solvers MATLAB soportados por el repo.
-- Verificar que el stack MATLAB/solvers quede realmente operativo.
+Responsibilities:
+- Verify the base repo layout.
+- Sync and download all submodules declared in .gitmodules.
+- Verify and install required Python dependencies.
+- Start the MATLAB Engine.
+- Verify required MATLAB products.
+- Add relevant project folders to the MATLAB path.
+- Run MATLAB solver installers supported by the repo.
+- Verify that the MATLAB/solver stack is fully operational.
 
-Este script NO:
-- lee solver_config.json
-- decide qué solver está activo
-- configura parámetros de corrida
-- ejecuta experimentos
+This script does NOT:
+- read solver_config.json
+- decide which solver is active
+- configure run parameters
+- execute experiments
 
-Su único objetivo es dejar el entorno listo para correr el repositorio en general.
+Its sole purpose is to leave the environment ready to run the repository.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 
 # =============================================================================
-# Configuración base
+# Base configuration
 # =============================================================================
 
 PYTHON_DEPENDENCIES: Dict[str, str] = {
@@ -43,8 +43,7 @@ PYTHON_DEPENDENCIES: Dict[str, str] = {
     "matlabengine": "matlab.engine",
 }
 
-# Productos MATLAB que el repo declara como parte del entorno requerido hoy.
-# Si más adelante limpias esta lista en el proyecto, ajústala aquí.
+# MATLAB products declared as required by the repo.
 REQUIRED_MATLAB_PRODUCTS: List[str] = [
     "MATLAB",
     "Statistics and Machine Learning Toolbox",
@@ -53,7 +52,7 @@ REQUIRED_MATLAB_PRODUCTS: List[str] = [
     "Communications Toolbox",
 ]
 
-# Paths MATLAB relevantes para el código actual del repositorio.
+# MATLAB paths relevant to the current repo code.
 MATLAB_REPO_PATHS: List[Path] = [
     Path("tools"),
     Path("tools/matlab"),
@@ -65,7 +64,7 @@ MATLAB_REPO_PATHS: List[Path] = [
     Path("extern/sedumi"),
 ]
 
-# Verificaciones críticas del stack MATLAB/solvers soportado hoy por el repo.
+# Critical function checks for the MATLAB/solver stack supported by the repo.
 MATLAB_FUNCTION_CHECKS: List[Tuple[str, str]] = [
     ("SDPT3 entrypoint", "sqlp"),
     ("SDPT3 parameters", "sqlparameters"),
@@ -80,7 +79,7 @@ MATLAB_FUNCTION_CHECKS: List[Tuple[str, str]] = [
 
 
 # =============================================================================
-# Utilidades de consola
+# Console utilities
 # =============================================================================
 
 def print_header(title: str) -> None:
@@ -110,7 +109,7 @@ def run_command(
     cwd: Optional[Path] = None,
     check: bool = True,
 ) -> subprocess.CompletedProcess:
-    print_info("Ejecutando: " + " ".join(cmd))
+    print_info("Running: " + " ".join(cmd))
     return subprocess.run(
         list(cmd),
         cwd=str(cwd) if cwd else None,
@@ -120,7 +119,7 @@ def run_command(
 
 
 # =============================================================================
-# Repo / estructura
+# Repo / structure
 # =============================================================================
 
 def repo_root_from_script() -> Path:
@@ -137,7 +136,7 @@ def ensure_repo_layout(repo_root: Path) -> None:
     missing = [str(path) for path in required_paths if not path.exists()]
     if missing:
         raise RuntimeError(
-            "La estructura del repositorio no parece válida. Faltan estas rutas:\n- "
+            "Repository layout does not look valid. Missing paths:\n- "
             + "\n- ".join(missing)
         )
 
@@ -161,21 +160,21 @@ def read_gitmodules_paths(repo_root: Path) -> List[Path]:
 
 
 # =============================================================================
-# Git / submódulos
+# Git / submodules
 # =============================================================================
 
 def ensure_git_available() -> None:
     if shutil.which("git") is None:
-        raise RuntimeError("No se encontró 'git' en PATH. Instálalo antes de continuar.")
+        raise RuntimeError("'git' not found in PATH. Install it before continuing.")
 
 
 def sync_and_update_submodules(repo_root: Path) -> List[Path]:
-    print_header("1. Submódulos git")
+    print_header("1. Git submodules")
     ensure_git_available()
 
     submodule_paths = read_gitmodules_paths(repo_root)
     if not submodule_paths:
-        print_warn("No se encontraron submódulos en .gitmodules.")
+        print_warn("No submodules found in .gitmodules.")
         return []
 
     run_command(["git", "submodule", "sync", "--recursive"], cwd=repo_root)
@@ -184,12 +183,12 @@ def sync_and_update_submodules(repo_root: Path) -> List[Path]:
     missing = [str(repo_root / rel_path) for rel_path in submodule_paths if not (repo_root / rel_path).exists()]
     if missing:
         raise RuntimeError(
-            "Después de actualizar submódulos, aún faltan estas rutas:\n- "
+            "After updating submodules, these paths are still missing:\n- "
             + "\n- ".join(missing)
         )
 
     for rel_path in submodule_paths:
-        print_ok(f"Submódulo presente: {rel_path}")
+        print_ok(f"Submodule present: {rel_path}")
 
     return submodule_paths
 
@@ -210,7 +209,7 @@ def install_python_package(package_name: str) -> None:
 
 
 def ensure_python_dependencies() -> None:
-    print_header("2. Dependencias Python")
+    print_header("2. Python dependencies")
 
     missing_packages = [
         package_name
@@ -220,11 +219,11 @@ def ensure_python_dependencies() -> None:
 
     if not missing_packages:
         for package_name in PYTHON_DEPENDENCIES:
-            print_ok(f"Disponible: {package_name}")
+            print_ok(f"Available: {package_name}")
         return
 
     for package_name in missing_packages:
-        print_warn(f"Falta {package_name}. Intentando instalar...")
+        print_warn(f"Missing {package_name}. Attempting install...")
         install_python_package(package_name)
 
     still_missing = [
@@ -234,12 +233,12 @@ def ensure_python_dependencies() -> None:
     ]
     if still_missing:
         raise RuntimeError(
-            "No se pudieron instalar estas dependencias Python:\n- "
+            "Could not install these Python dependencies:\n- "
             + "\n- ".join(still_missing)
         )
 
     for package_name in PYTHON_DEPENDENCIES:
-        print_ok(f"Disponible: {package_name}")
+        print_ok(f"Available: {package_name}")
 
 
 # =============================================================================
@@ -252,9 +251,9 @@ def import_matlab_engine():
         return matlab.engine
     except Exception as exc:
         raise RuntimeError(
-            "No fue posible importar matlab.engine. "
-            "Verifica que MATLAB esté instalado y que el paquete 'matlabengine' "
-            "sea compatible con tu versión de Python."
+            "Could not import matlab.engine. "
+            "Verify that MATLAB is installed and that the 'matlabengine' package "
+            "is compatible with your Python version."
         ) from exc
 
 
@@ -276,7 +275,7 @@ def get_installed_matlab_products(eng) -> List[str]:
 
 
 def ensure_required_matlab_products(eng) -> None:
-    print_header("3. Productos de MATLAB")
+    print_header("3. MATLAB products")
 
     installed_products = get_installed_matlab_products(eng)
     for product in installed_products:
@@ -285,16 +284,16 @@ def ensure_required_matlab_products(eng) -> None:
     missing = [product for product in REQUIRED_MATLAB_PRODUCTS if product not in installed_products]
     if missing:
         raise RuntimeError(
-            "Faltan productos oficiales de MATLAB requeridos por el repositorio:\n- "
+            "Missing required MATLAB products:\n- "
             + "\n- ".join(missing)
-            + "\n\nInstálalos desde MATLAB/MathWorks y vuelve a ejecutar este script."
+            + "\n\nInstall them from MATLAB/MathWorks and re-run this script."
         )
 
-    print_ok("Productos de MATLAB verificados.")
+    print_ok("MATLAB products verified.")
 
 
 def reset_and_add_repo_paths(eng, repo_root: Path) -> None:
-    print_header("4. Paths del repositorio en MATLAB")
+    print_header("4. Repo paths in MATLAB")
 
     eng.restoredefaultpath(nargout=0)
     eng.rehash(nargout=0)
@@ -304,32 +303,32 @@ def reset_and_add_repo_paths(eng, repo_root: Path) -> None:
         if abs_path.exists():
             matlab_path = abs_path.as_posix().replace("'", "''")
             eng.eval(f"addpath(genpath('{matlab_path}'));", nargout=0)
-            print_ok(f"Path agregado: {rel_path}")
+            print_ok(f"Path added: {rel_path}")
         else:
-            print_warn(f"Path no existe y se omite: {rel_path}")
+            print_warn(f"Path does not exist, skipping: {rel_path}")
 
     eng.rehash(nargout=0)
-    print_ok("Paths del repositorio agregados a MATLAB.")
+    print_ok("Repo paths added to MATLAB.")
 
 
 def configure_mex_compilers(eng) -> None:
-    print_header("5. Configuración MEX")
+    print_header("5. MEX configuration")
 
     try:
         eng.eval("mex -setup C", nargout=0)
-        print_ok("Compilador MEX C configurado.")
+        print_ok("MEX C compiler configured.")
     except Exception as exc:
-        print_warn(f"No se pudo configurar MEX C automáticamente: {exc}")
+        print_warn(f"Could not configure MEX C automatically: {exc}")
 
     try:
         eng.eval("mex -setup C++", nargout=0)
-        print_ok("Compilador MEX C++ configurado.")
+        print_ok("MEX C++ compiler configured.")
     except Exception as exc:
-        print_warn(f"No se pudo configurar MEX C++ automáticamente: {exc}")
+        print_warn(f"Could not configure MEX C++ automatically: {exc}")
 
 
 # =============================================================================
-# Preparación de solvers MATLAB soportados por el repo
+# MATLAB solver preparation
 # =============================================================================
 
 def run_matlab_installer_if_available(
@@ -340,7 +339,7 @@ def run_matlab_installer_if_available(
     allow_rebuild: bool = False,
 ) -> None:
     if not working_dir.exists():
-        print_warn(f"No existe la carpeta {working_dir}. Se omite {script_name}.")
+        print_warn(f"Directory {working_dir} does not exist. Skipping {script_name}.")
         return
 
     old_dir = eng.pwd(nargout=1)
@@ -348,24 +347,24 @@ def run_matlab_installer_if_available(
         eng.cd(working_dir.as_posix(), nargout=0)
 
         if matlab_exist(eng, script_name, "file") == 0:
-            raise RuntimeError(f"MATLAB no encuentra '{script_name}' dentro de {working_dir}")
+            raise RuntimeError(f"MATLAB cannot find '{script_name}' in {working_dir}")
 
         try:
             eng.eval(script_name, nargout=0)
-            print_ok(f"{script_name} ejecutado correctamente.")
+            print_ok(f"{script_name} executed successfully.")
         except Exception as exc:
             if allow_rebuild:
-                print_warn(f"{script_name} falló. Intentando rebuild...")
+                print_warn(f"{script_name} failed. Attempting rebuild...")
                 eng.eval(f"{script_name} -rebuild", nargout=0)
-                print_ok(f"{script_name} -rebuild ejecutado correctamente.")
+                print_ok(f"{script_name} -rebuild executed successfully.")
             else:
-                raise RuntimeError(f"Falló {script_name}: {exc}") from exc
+                raise RuntimeError(f"{script_name} failed: {exc}") from exc
     finally:
         eng.cd(old_dir, nargout=0)
 
 
 def prepare_supported_solvers(eng, repo_root: Path) -> None:
-    print_header("6. Preparación de solvers soportados")
+    print_header("6. Solver preparation")
 
     sdpt3_dir = repo_root / "extern" / "sdpt3"
     sedumi_dir = repo_root / "extern" / "sedumi"
@@ -383,16 +382,16 @@ def prepare_supported_solvers(eng, repo_root: Path) -> None:
         allow_rebuild=False,
     )
 
-    # Algunos instaladores alteran el path de MATLAB.
+    # Some installers alter the MATLAB path; reset to ensure consistency.
     reset_and_add_repo_paths(eng, repo_root)
 
 
 # =============================================================================
-# Verificaciones finales
+# Final verification
 # =============================================================================
 
 def verify_matlab_solver_stack(eng) -> None:
-    print_header("7. Verificación final MATLAB / solvers")
+    print_header("7. Final MATLAB / solver verification")
 
     failures: List[str] = []
 
@@ -402,21 +401,21 @@ def verify_matlab_solver_stack(eng) -> None:
             location = matlab_which(eng, func_name)
             print_ok(f"{label}: {func_name} -> {location}")
         else:
-            print_fail(f"{label}: MATLAB no encuentra '{func_name}'")
+            print_fail(f"{label}: MATLAB cannot find '{func_name}'")
             failures.append(f"{label}: {func_name}")
 
     if failures:
         raise RuntimeError(
-            "El setup terminó, pero siguen faltando funciones críticas:\n- "
+            "Setup completed, but critical functions are still missing:\n- "
             + "\n- ".join(failures)
-            + "\n\nEl entorno no quedó listo para correr el repositorio."
+            + "\n\nThe environment is not ready to run the repository."
         )
 
-    print_ok("Verificación MATLAB / solvers superada.")
+    print_ok("MATLAB / solver verification passed.")
 
 
 def smoke_test_repo_helpers(repo_root: Path, eng) -> None:
-    print_header("8. Smoke test de helpers del repo")
+    print_header("8. Repo helper smoke test")
 
     required_helpers = [
         repo_root / "tools" / "matlab" / "sdpt3" / "run_sdpt3_instance.m",
@@ -426,35 +425,35 @@ def smoke_test_repo_helpers(repo_root: Path, eng) -> None:
     missing_files = [str(path) for path in required_helpers if not path.exists()]
     if missing_files:
         raise RuntimeError(
-            "Faltan helpers MATLAB esperados del repositorio:\n- "
+            "Expected repo MATLAB helpers are missing:\n- "
             + "\n- ".join(missing_files)
         )
 
     if matlab_exist(eng, "run_sdpt3_instance", "file") == 0:
-        raise RuntimeError("MATLAB no encuentra run_sdpt3_instance después del setup.")
+        raise RuntimeError("MATLAB cannot find run_sdpt3_instance after setup.")
     if matlab_exist(eng, "run_sedumi_instance", "file") == 0:
-        raise RuntimeError("MATLAB no encuentra run_sedumi_instance después del setup.")
+        raise RuntimeError("MATLAB cannot find run_sedumi_instance after setup.")
 
-    print_ok("Helpers MATLAB del repo visibles y listos.")
+    print_ok("Repo MATLAB helpers visible and ready.")
 
 
 def summarize(repo_root: Path, submodule_paths: List[Path]) -> None:
-    print_header("9. Resumen final")
-    print_ok(f"Raíz del repo: {repo_root}")
+    print_header("9. Summary")
+    print_ok(f"Repo root: {repo_root}")
 
     if submodule_paths:
-        print_ok("Submódulos preparados:")
+        print_ok("Submodules prepared:")
         for rel_path in submodule_paths:
             print(f"     - {rel_path}")
     else:
-        print_warn("No había submódulos declarados en .gitmodules.")
+        print_warn("No submodules declared in .gitmodules.")
 
-    print_ok("Dependencias Python: OK")
-    print_ok("Productos MATLAB: OK")
-    print_ok("Paths MATLAB del repo: OK")
+    print_ok("Python dependencies: OK")
+    print_ok("MATLAB products: OK")
+    print_ok("Repo MATLAB paths: OK")
     print_ok("SDPT3: OK")
     print_ok("SeDuMi: OK")
-    print_ok("Entorno general del repositorio listo.")
+    print_ok("Repository environment ready.")
 
 
 # =============================================================================
@@ -464,8 +463,8 @@ def summarize(repo_root: Path, submodule_paths: List[Path]) -> None:
 def main() -> int:
     repo_root = repo_root_from_script()
 
-    print_header("SETUP DEL ENTORNO DEL REPOSITORIO")
-    print_info(f"Raíz detectada: {repo_root}")
+    print_header("REPOSITORY ENVIRONMENT SETUP")
+    print_info(f"Detected root: {repo_root}")
 
     ensure_repo_layout(repo_root)
     submodule_paths = sync_and_update_submodules(repo_root)
@@ -473,7 +472,7 @@ def main() -> int:
 
     matlab_engine = import_matlab_engine()
 
-    print_header("Iniciando MATLAB Engine")
+    print_header("Starting MATLAB Engine")
     eng = matlab_engine.start_matlab()
     try:
         ensure_required_matlab_products(eng)
@@ -496,6 +495,6 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        print_header("SETUP FALLÓ")
+        print_header("SETUP FAILED")
         print(str(exc))
         raise

@@ -1,10 +1,9 @@
 function result = run_sedumi_instance(instance_path, varargin)
-%RUN_SEDUMI_INSTANCE Ejecuta una instancia .dat-s o .mat con SeDuMi.
+%RUN_SEDUMI_INSTANCE Solve a .dat-s or .mat instance with SeDuMi.
 %
-% Basado en la lógica del wrapper antiguo:
-% - Lee con fromsdpa
-% - Resuelve con sedumi
-% - Calcula manualmente pobj, dobj, gap, pinfeas, dinfeas, phi
+% - Reads with fromsdpa
+% - Solves with sedumi
+% - Manually computes pobj, dobj, gap, pinfeas, dinfeas, phi
 
     p = inputParser;
     addParameter(p, 'target_tol', 1e-6);
@@ -104,17 +103,17 @@ function result = run_sedumi_instance(instance_path, varargin)
         [x, y, info] = sedumi(At, b, c, K, pars);
         t_elapsed = toc(t_start);
 
-        % Objetivos primal y dual
+        % Primal and dual objectives
         pobj = full(c' * x);
         dobj = full(b' * y);
 
-        % Gap relativo homogéneo
+        % Homogeneous relative gap
         gap = abs(pobj - dobj) / (1 + abs(pobj) + abs(dobj));
 
-        % Residuo primal: A*x - b, pero At = A'
+        % Primal residual: A*x - b, where At = A'
         pinfeas = norm(At' * x - b) / (1 + norm(b));
 
-        % Slack dual: s = c - A'*y, pero At = A'
+        % Dual slack: s = c - A'*y, where At = A'
         s = c - At * y;
         lam = eigK(s, K);
 
@@ -187,7 +186,7 @@ function result = run_sedumi_instance(instance_path, varargin)
     catch ME
         result.status = 'FAILED';
         result.runtime = toc(t_start);
-        fprintf(2, 'Error en run_sedumi_instance: %s\n', ME.message);
+        fprintf(2, 'Error in run_sedumi_instance: %s\n', ME.message);
     end
 
     if ~isempty(opts.log_path)

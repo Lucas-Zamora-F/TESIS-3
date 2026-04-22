@@ -491,6 +491,8 @@ def fill_empty_space(
     # 3. Prepare output directory and working metadata_test
     # -------------------------------------------------------------------------
     run_dir = output_dir / target_id
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     metadata_test_working_csv = (

@@ -34,6 +34,11 @@ def create_logger(log_callback: Optional[Callable[[str], None]] = None):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = log_dir / f"environment_setup_{timestamp}.txt"
 
+    # Keep only the 3 most recent logs; delete older ones.
+    existing = sorted(log_dir.glob("environment_setup_*.txt"))
+    for old_log in existing[:-2]:
+        old_log.unlink(missing_ok=True)
+
     def log(msg: str) -> None:
         # consola
         print(msg)
@@ -42,7 +47,7 @@ def create_logger(log_callback: Optional[Callable[[str], None]] = None):
         if log_callback:
             log_callback(msg)
 
-        # archivo
+        # file
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(msg + "\n")
 

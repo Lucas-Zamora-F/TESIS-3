@@ -1,7 +1,0 @@
-Error en run_sedumi_instance: The SeDuMi binaries for your platform are not installed.
-To rectify, run the following commands from the Matlab command line:
-
-   cd C:\Users\Lucas Zamora\Desktop\TESIS-3\extern\sedumi
-   install_sedumi
-
-For more information, read C:\Users\Lucas Zamora\Desktop\TESIS-3\extern\sedumi\Install.txt.
