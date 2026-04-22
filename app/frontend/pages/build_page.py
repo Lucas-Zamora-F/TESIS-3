@@ -86,6 +86,7 @@ class BuildPage(QWidget):
     open_metadata = Signal()
     open_build = Signal()
     open_explore = Signal()
+    open_genetic = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -198,6 +199,14 @@ class BuildPage(QWidget):
         )
         explore_button.clicked.connect(self.open_explore.emit)
 
+        genetic_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/genetic_icon.png",
+            tooltip_text="Genetic",
+            icon_size=24,
+            button_size=48,
+        )
+        genetic_button.clicked.connect(self.open_genetic.emit)
+
         settings_button = SidebarButton(
             icon_relative_path="app/frontend/assets/icons/settings_icon.png",
             tooltip_text="Configuration",
@@ -211,6 +220,7 @@ class BuildPage(QWidget):
         layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(explore_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(genetic_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
         layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -628,7 +638,6 @@ class BuildPage(QWidget):
 
         self.image_preview = QLabel("Select a file to preview")
         self.image_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_preview.setMinimumHeight(320)
         self.image_preview.setStyleSheet("""
             QLabel {
                 background-color: #1e1e1e;
@@ -659,9 +668,12 @@ class BuildPage(QWidget):
             }
         """)
 
+        self.preview_stack = QStackedWidget()
+        self.preview_stack.addWidget(self.image_preview)   # index 0
+        self.preview_stack.addWidget(self.table_preview)   # index 1
+
         preview_layout.addWidget(self.preview_title)
-        preview_layout.addWidget(self.image_preview)
-        preview_layout.addWidget(self.table_preview, 1)
+        preview_layout.addWidget(self.preview_stack, 1)
 
         layout.addWidget(preview_panel, 1)
 
@@ -818,6 +830,7 @@ class BuildPage(QWidget):
 
         self.image_preview.setPixmap(QPixmap())
         self.image_preview.setText("Select a file to preview")
+        self.preview_stack.setCurrentIndex(0)
 
         self.table_preview.clear()
         self.table_preview.setRowCount(0)
@@ -878,21 +891,24 @@ class BuildPage(QWidget):
 
         self.preview_title.setText(f"Preview: {file_path.name}")
 
-        self.image_preview.setPixmap(QPixmap())
-        self.image_preview.setText("Loading...")
-
-        self.table_preview.clear()
-        self.table_preview.setRowCount(0)
-        self.table_preview.setColumnCount(0)
-
         suffix = file_path.suffix.lower()
 
         if suffix in {".png", ".jpg", ".jpeg"}:
+            self.table_preview.clear()
+            self.table_preview.setRowCount(0)
+            self.table_preview.setColumnCount(0)
+            self.image_preview.setPixmap(QPixmap())
+            self.image_preview.setText("Loading...")
+            self.preview_stack.setCurrentIndex(0)
             self._preview_image(file_path)
         elif suffix == ".csv":
+            self.image_preview.setPixmap(QPixmap())
+            self.image_preview.setText("")
+            self.preview_stack.setCurrentIndex(1)
             self._preview_csv(file_path)
         else:
             self.image_preview.setText("Preview not supported")
+            self.preview_stack.setCurrentIndex(0)
 
     def _preview_image(self, file_path: Path) -> None:
         pixmap = QPixmap(str(file_path))
@@ -918,7 +934,7 @@ class BuildPage(QWidget):
                 rows = list(reader)
 
             if not rows:
-                self.image_preview.setText("Empty CSV")
+                self.preview_title.setText(f"Preview: {file_path.name} — empty")
                 return
 
             headers = rows[0]
@@ -933,9 +949,10 @@ class BuildPage(QWidget):
                     self.table_preview.setItem(i, j, QTableWidgetItem(val))
 
             self.table_preview.resizeColumnsToContents()
-            self.image_preview.setText("CSV preview below")
 
         except Exception as e:
+            self.preview_title.setText(f"Preview: error — {e}")
+            self.preview_stack.setCurrentIndex(0)
             self.image_preview.setText(f"Error reading CSV: {e}")
 
     def show_output_path_message(self) -> None:

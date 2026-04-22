@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -24,6 +24,16 @@ class InstanceRow(QWidget):
         super().__init__()
 
         self.instance_name = instance_name
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setStyleSheet("""
+            InstanceRow {
+                border-bottom: 1px solid #2a2a2a;
+                background-color: transparent;
+            }
+            InstanceRow:hover {
+                background-color: #333337;
+            }
+        """)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(4, 6, 4, 6)
@@ -33,10 +43,13 @@ class InstanceRow(QWidget):
         name_label.setStyleSheet("""
             color: #d4d4d4;
             font-size: 13px;
+            background: transparent;
         """)
+        name_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(checked)
+        self.checkbox.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.checkbox.setStyleSheet("""
             QCheckBox::indicator {
                 width: 18px;
@@ -55,6 +68,9 @@ class InstanceRow(QWidget):
         layout.addWidget(self.checkbox, 0, Qt.AlignmentFlag.AlignRight)
 
         self.setLayout(layout)
+
+    def mousePressEvent(self, event: QEvent) -> None:
+        self.checkbox.setChecked(not self.checkbox.isChecked())
 
 
 class InstanceSection(QWidget):

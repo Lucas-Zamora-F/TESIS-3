@@ -12,9 +12,26 @@ from tools.features.instance_reader import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
 DEFAULT_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "sdplib"
+
 SDPLIB_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "sdplib"
 DIMACS_INSTANCES_DIR = PROJECT_ROOT / "data" / "instances" / "DIMACS" / "instances"
+GENETIC_FILL_EMPTY_SPACE_INSTANCES_DIR = (
+    PROJECT_ROOT
+    / "data"
+    / "instances"
+    / "genetic generated"
+    / "fill empty space"
+)
+GENETIC_POINT_TARGET_INSTANCES_DIR = (
+    PROJECT_ROOT
+    / "data"
+    / "instances"
+    / "genetic generated"
+    / "point target"
+)
+
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT / "ISA metadata" / "intermediates" / "source_table.csv"
 )
@@ -35,6 +52,18 @@ def _extract_source(instance_path: Path) -> str:
     try:
         resolved_path.relative_to(DIMACS_INSTANCES_DIR.resolve())
         return "DIMACS"
+    except ValueError:
+        pass
+
+    try:
+        resolved_path.relative_to(GENETIC_FILL_EMPTY_SPACE_INSTANCES_DIR.resolve())
+        return "Genetically Generated to Fill Empty Space"
+    except ValueError:
+        pass
+
+    try:
+        resolved_path.relative_to(GENETIC_POINT_TARGET_INSTANCES_DIR.resolve())
+        return "Genetically Generated from Point Target"
     except ValueError:
         pass
 
@@ -88,8 +117,9 @@ def build_source_table(
 
     | Instance    | Source |
     |-------------|--------|
-    | arch0.dat-s      | SDPLIB |
-    | BISECT/bm1.mat   | DIMACS |
+    | arch0.dat-s | SDPLIB |
+    | BISECT/bm1.mat | DIMACS |
+    | gen_001.dat-s | Genetically Generated to Fill Empty Space |
 
     The resulting dataframe is also saved to:
         ISA metadata/intermediates/source_table.csv

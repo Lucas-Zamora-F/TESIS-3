@@ -61,6 +61,20 @@ def orchestrate_isa_metadata(
     instances_roots = {
         "sdplib": REPO_ROOT / "data" / "instances" / "sdplib",
         "dimacs": REPO_ROOT / "data" / "instances" / "DIMACS" / "instances",
+        "genetic_fill_empty_space": (
+            REPO_ROOT
+            / "data"
+            / "instances"
+            / "genetic generated"
+            / "fill empty space"
+        ),
+        "genetic_point_target": (
+            REPO_ROOT
+            / "data"
+            / "instances"
+            / "genetic generated"
+            / "point target"
+        ),
     }
 
     instances_mode = config["instances"]["mode"]

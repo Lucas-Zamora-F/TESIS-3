@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -37,44 +37,49 @@ class MetadataOrchestratorConfigEditor(QWidget):
 
     def _build_ui(self) -> None:
         self.setStyleSheet("""
-            QFrame {
-                background-color: #252526;
-                border: 1px solid #3a3a3a;
-                border-radius: 12px;
+            QWidget {
+                background-color: #2f2f2f;
+                color: #f3f3f3;
             }
             QLabel {
+                background: transparent;
                 color: #f3f3f3;
+                font-size: 13px;
             }
             QComboBox, QLineEdit {
-                background-color: #1f1f1f;
+                background-color: #1e1e1e;
                 color: #f3f3f3;
-                border: 1px solid #3a3a3a;
+                border: 1px solid #4a4a4a;
                 border-radius: 6px;
-                padding: 6px;
+                padding: 6px 8px;
+                min-height: 30px;
             }
             QCheckBox {
                 color: #f3f3f3;
+                spacing: 8px;
+                font-size: 13px;
             }
         """)
 
         root = QVBoxLayout()
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(12)
+        root.setContentsMargins(0, 10, 0, 10)
+        root.setSpacing(22)
 
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #d7ba7d; font-weight: 600;")
+        self.status_label.setStyleSheet("color: #d7ba7d; font-weight: 600; font-size: 13px;")
         root.addWidget(self.status_label)
-
-        frame = QFrame()
-        layout = QVBoxLayout()
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
 
         # ============================================================
         # INSTANCES
         # ============================================================
         self.instances_mode = self._combo(["enabled", "all"])
-        layout.addLayout(self._row("Instances mode", self.instances_mode))
+        instances_section = self._create_section_header("Instances")
+        instances_grid = self._create_form_grid()
+        instances_grid.addWidget(QLabel("Mode"), 0, 0)
+        instances_grid.addWidget(self.instances_mode, 0, 1)
+        instances_section.addLayout(instances_grid)
+        root.addLayout(instances_section)
+        root.addWidget(self._create_separator())
 
         # ============================================================
         # PIPELINE
@@ -83,9 +88,17 @@ class MetadataOrchestratorConfigEditor(QWidget):
         self.features_mode = self._combo(["build", "csv"])
         self.solver_mode = self._combo(["build", "csv"])
 
-        layout.addLayout(self._row("Source table", self.source_mode))
-        layout.addLayout(self._row("Features table", self.features_mode))
-        layout.addLayout(self._row("Solver runtime table", self.solver_mode))
+        pipeline_section = self._create_section_header("Pipeline")
+        pipeline_grid = self._create_form_grid()
+        pipeline_grid.addWidget(QLabel("Source table"), 0, 0)
+        pipeline_grid.addWidget(self.source_mode, 0, 1)
+        pipeline_grid.addWidget(QLabel("Features table"), 1, 0)
+        pipeline_grid.addWidget(self.features_mode, 1, 1)
+        pipeline_grid.addWidget(QLabel("Solver runtime table"), 2, 0)
+        pipeline_grid.addWidget(self.solver_mode, 2, 1)
+        pipeline_section.addLayout(pipeline_grid)
+        root.addLayout(pipeline_section)
+        root.addWidget(self._create_separator())
 
         # ============================================================
         # OUTPUT
@@ -93,8 +106,14 @@ class MetadataOrchestratorConfigEditor(QWidget):
         self.save_metadata = QCheckBox("Save metadata")
         self.metadata_path = QLineEdit()
 
-        layout.addWidget(self.save_metadata)
-        layout.addLayout(self._row("Metadata path", self.metadata_path))
+        output_section = self._create_section_header("Output")
+        output_grid = self._create_form_grid()
+        output_grid.addWidget(self.save_metadata, 0, 0, 1, 2)
+        output_grid.addWidget(QLabel("Metadata path"), 1, 0)
+        output_grid.addWidget(self.metadata_path, 1, 1)
+        output_section.addLayout(output_grid)
+        root.addLayout(output_section)
+        root.addWidget(self._create_separator())
 
         # ============================================================
         # LOGGING
@@ -102,12 +121,13 @@ class MetadataOrchestratorConfigEditor(QWidget):
         self.logging_enabled = QCheckBox("Enable logging")
         self.logging_level = self._combo(["DEBUG", "INFO", "WARNING", "ERROR"])
 
-        layout.addWidget(self.logging_enabled)
-        layout.addLayout(self._row("Logging level", self.logging_level))
-
-        frame.setLayout(layout)
-        root.addWidget(frame)
-        root.addStretch()
+        logging_section = self._create_section_header("Logging")
+        logging_grid = self._create_form_grid()
+        logging_grid.addWidget(self.logging_enabled, 0, 0, 1, 2)
+        logging_grid.addWidget(QLabel("Logging level"), 1, 0)
+        logging_grid.addWidget(self.logging_level, 1, 1)
+        logging_section.addLayout(logging_grid)
+        root.addLayout(logging_section)
 
         self.setLayout(root)
 
@@ -122,13 +142,32 @@ class MetadataOrchestratorConfigEditor(QWidget):
         c.addItems(options)
         return c
 
-    def _row(self, label_text: str, widget: QWidget) -> QHBoxLayout:
-        row = QHBoxLayout()
-        label = QLabel(label_text)
-        label.setFixedWidth(180)
-        row.addWidget(label)
-        row.addWidget(widget)
-        return row
+    def _create_section_header(self, title_text: str) -> QVBoxLayout:
+        layout = QVBoxLayout()
+        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
+        title = QLabel(title_text)
+        title.setStyleSheet("""
+            font-size: 22px;
+            font-weight: 800;
+            color: #f3f3f3;
+        """)
+        layout.addWidget(title)
+        return layout
+
+    def _create_form_grid(self) -> QGridLayout:
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(18)
+        grid.setVerticalSpacing(10)
+        grid.setColumnStretch(0, 0)
+        grid.setColumnStretch(1, 1)
+        return grid
+
+    def _create_separator(self) -> QWidget:
+        line = QWidget()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background-color: #3a3a3a;")
+        return line
 
     # ============================================================
     # CONFIG LOGIC

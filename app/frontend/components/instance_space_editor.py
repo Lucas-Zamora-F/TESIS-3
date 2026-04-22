@@ -35,10 +35,12 @@ class InstanceSpaceEditor(QWidget):
         self.setStyleSheet("""
             QWidget {
                 background-color: #2f2f2f;
+                color: #f3f3f3;
             }
             QLabel {
-                color: #d4d4d4;
+                color: #f3f3f3;
                 background: transparent;
+                font-size: 13px;
             }
             QPushButton {
                 background-color: #252526;
@@ -98,8 +100,8 @@ class InstanceSpaceEditor(QWidget):
         self.container = QWidget()
         self.container.setStyleSheet("background-color: #2f2f2f;")
         self.container_layout = QVBoxLayout()
-        self.container_layout.setContentsMargins(0, 0, 0, 0)
-        self.container_layout.setSpacing(16)
+        self.container_layout.setContentsMargins(0, 10, 0, 10)
+        self.container_layout.setSpacing(22)
         self.container.setLayout(self.container_layout)
         self.scroll.setWidget(self.container)
 
@@ -157,23 +159,17 @@ class InstanceSpaceEditor(QWidget):
         return build
 
     def _add_section(self, section_name: str, values: dict) -> None:
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        section_layout = QVBoxLayout()
+        section_layout.setContentsMargins(0, 0, 0, 0)
+        section_layout.setSpacing(12)
 
         title = QLabel(section_name)
         title.setStyleSheet("""
+            font-size: 22px;
+            font-weight: 800;
             color: #f3f3f3;
-            font-size: 15px;
-            font-weight: 700;
         """)
-
-        separator = QFrame()
-        separator.setFixedHeight(1)
-        separator.setStyleSheet("background-color: #3a3a3a;")
-
-        layout.addWidget(title)
-        layout.addWidget(separator)
+        section_layout.addWidget(title)
 
         grid = QGridLayout()
         grid.setHorizontalSpacing(18)
@@ -189,11 +185,16 @@ class InstanceSpaceEditor(QWidget):
             grid.addWidget(widget, row, 1)
             row += 1
 
-        layout.addLayout(grid)
+        section_layout.addLayout(grid)
 
         wrapper = QWidget()
-        wrapper.setLayout(layout)
+        wrapper.setLayout(section_layout)
         self.container_layout.addWidget(wrapper)
+
+        separator = QWidget()
+        separator.setFixedHeight(1)
+        separator.setStyleSheet("background-color: #3a3a3a;")
+        self.container_layout.addWidget(separator)
 
     def _create_input_widget(self, section: str, key: str, value: Any) -> QWidget:
         full_key = f"{section}.{key}"

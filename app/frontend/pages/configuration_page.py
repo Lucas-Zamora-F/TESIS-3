@@ -85,6 +85,7 @@ class ConfigurationPage(QWidget):
     open_metadata = Signal()
     open_build = Signal()
     open_explore = Signal()
+    open_genetic = Signal()
 
     DEFAULT_CONFIG: Dict[str, Any] = {
         "ui": {
@@ -216,6 +217,14 @@ class ConfigurationPage(QWidget):
         )
         explore_button.clicked.connect(self.open_explore.emit)
 
+        genetic_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/genetic_icon.png",
+            tooltip_text="Genetic",
+            icon_size=24,
+            button_size=48,
+        )
+        genetic_button.clicked.connect(self.open_genetic.emit)
+
         settings_button = SidebarButton(
             icon_relative_path="app/frontend/assets/icons/settings_icon.png",
             tooltip_text="Configuration",
@@ -230,6 +239,7 @@ class ConfigurationPage(QWidget):
         left_sidebar_layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addWidget(explore_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        left_sidebar_layout.addWidget(genetic_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar_layout.addStretch()
         left_sidebar_layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
         left_sidebar.setLayout(left_sidebar_layout)

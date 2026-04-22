@@ -59,34 +59,38 @@ class SidebarButton(QPushButton):
     # ICON
     # ============================================================
     def _load_icon(self) -> None:
+        from PySide6.QtGui import QPainter, QColor
+
         icon_path = get_resource_path(self.icon_relative_path)
         pixmap = QPixmap(icon_path)
 
         if pixmap.isNull():
             return
 
-        pixmap = pixmap.scaled(
+        self._raw_pixmap = pixmap.scaled(
             self.icon_size_value,
             self.icon_size_value,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
+        self._tint_icon()
 
-        # ============================================================
-        # RECOLOR A GRIS CLARO
-        # ============================================================
+    def _tint_icon(self) -> None:
         from PySide6.QtGui import QPainter, QColor
 
-        recolored = QPixmap(pixmap.size())
+        if not hasattr(self, "_raw_pixmap") or self._raw_pixmap is None:
+            return
+
+        color = QColor("#4fc1ff") if self.is_active else QColor("#c5c5c5")
+
+        recolored = QPixmap(self._raw_pixmap.size())
         recolored.fill(Qt.GlobalColor.transparent)
 
         painter = QPainter(recolored)
         painter.setCompositionMode(QPainter.CompositionMode_Source)
-        painter.drawPixmap(0, 0, pixmap)
-
+        painter.drawPixmap(0, 0, self._raw_pixmap)
         painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-        painter.fillRect(recolored.rect(), QColor("#c5c5c5"))  # ← color gris claro
-
+        painter.fillRect(recolored.rect(), color)
         painter.end()
 
         self.icon_label.setPixmap(recolored)
@@ -97,6 +101,7 @@ class SidebarButton(QPushButton):
     def set_active(self, active: bool) -> None:
         self.is_active = active
         self._apply_style()
+        self._tint_icon()
 
     # ============================================================
     # STYLE

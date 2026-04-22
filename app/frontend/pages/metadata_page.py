@@ -84,6 +84,7 @@ class MetadataPage(QWidget):
     open_metadata = Signal()
     open_build = Signal()
     open_explore = Signal()
+    open_genetic = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -199,6 +200,14 @@ class MetadataPage(QWidget):
         )
         explore_button.clicked.connect(self.open_explore.emit)
 
+        genetic_button = SidebarButton(
+            icon_relative_path="app/frontend/assets/icons/genetic_icon.png",
+            tooltip_text="Genetic",
+            icon_size=24,
+            button_size=48,
+        )
+        genetic_button.clicked.connect(self.open_genetic.emit)
+
         settings_button = SidebarButton(
             icon_relative_path="app/frontend/assets/icons/settings_icon.png",
             tooltip_text="Configuration",
@@ -212,6 +221,7 @@ class MetadataPage(QWidget):
         layout.addWidget(metadata_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(build_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(explore_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(genetic_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
         layout.addWidget(settings_button, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -298,12 +308,10 @@ class MetadataPage(QWidget):
                 background-color: #2f2f2f;
                 border: none;
             }
-            QWidget {
-                background-color: #2f2f2f;
-            }
         """)
 
         content = QWidget()
+        content.setStyleSheet("background-color: #2f2f2f;")
         layout = QVBoxLayout()
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(16)
